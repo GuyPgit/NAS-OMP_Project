@@ -27,17 +27,17 @@
 #---------------------------------------------------------------------------
 # This is the C compiler used for OpenMP programs
 #---------------------------------------------------------------------------
-CC = g++ -std=c++14
+CC = icpx -std=c++14
 
 
 # This links C programs; usually the same as ${CC}
-CLINK	= $(CC)
+CLINK = $(CC)
 
 
 #---------------------------------------------------------------------------
 # These macros are passed to the linker 
 #---------------------------------------------------------------------------
-C_LIB  = -lm
+# C_LIB  = -lm  # not needed and may cause issues for us
 
 
 #---------------------------------------------------------------------------
@@ -49,14 +49,18 @@ C_INC = -I../common
 #---------------------------------------------------------------------------
 # Global *compile time* flags for C programs
 #---------------------------------------------------------------------------
-CFLAGS	= -O3 -fopenmp -mcmodel=medium
+CFLAGS	= -Ofast -qopenmp -xSAPPHIRERAPIDS -ipo  # removed usage of -mcmodel=medium as it seemed to sometimes slightly decrease performance
+# CFLAGS += -mprefer-vector-width=512 -qopt-mem-layout-trans=4  # these seems to slightly decrease perfomance so we opt out of using them. -xCORE-AVX512 seems to overlap with -xSAPPHIRERAPIDS
+# CFLAGS += -qopt-report=max  # add report information
+# CFLAGS += -g -gline-tables-only -fdebug-info-for-profiling  # flags for debug
+# CFLAGS += -fopenmp-targets=spir64  # for GPU offloading
 
 
 #---------------------------------------------------------------------------
 # Global *link time* flags. Flags for increasing maximum executable 
 # size usually go here. 
 #---------------------------------------------------------------------------
-CLINKFLAGS = -O3 -fopenmp -mcmodel=medium
+CLINKFLAGS = -Ofast -qopenmp -xSAPPHIRERAPIDS -ipo
 
 
 #---------------------------------------------------------------------------
@@ -66,7 +70,7 @@ CLINKFLAGS = -O3 -fopenmp -mcmodel=medium
 # this compiler go here also; typically there are few flags required; hence 
 # there are no separate macros provided for such flags.
 #---------------------------------------------------------------------------
-UCC	= g++ -fopenmp
+UCC	= icpx -qopenmp
 
 
 #---------------------------------------------------------------------------

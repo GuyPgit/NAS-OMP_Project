@@ -1,0 +1,12 @@
+.ipynb_checkpoints
+NPB-OMP/LU/.ipynb_checkpoints
+NPB-OMP/LU/lu.o
+NPB-OMP/LU/lu.opt.yaml
+NPB-OMP/LU/lu.optrpt
+NPB-OMP/LU/npbparams.hpp
+NPB-OMP/vtune_hotspots
+NPB-OMP/common/c_timers.o
+NPB-OMP/common/c_wtime.o
+NPB-OMP/common/c_print_results.o
+NPB-OMP/sys/setparams
+NPB-OMP/timer.flag
