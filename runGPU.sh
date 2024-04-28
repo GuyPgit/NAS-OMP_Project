@@ -1,8 +1,3 @@
-#!/bin/bash
-
-# set variables
-RUN_CLASS=C
-RUN_PATH="/home/$USER/Multicore_Processors_and_Embedded_Systems/NAS-OMP_Project/NPB-OMP"
 EXE_PATH="./bin/lu.$RUN_CLASS"
 VTUNE_CPU_HOTSPOTS_PATH="./vtune_hotspots"
 ADV_VEC_PATH="./adv_vectorization"
@@ -15,6 +10,11 @@ rm -r VTUNE_CPU_HOTSPOTS_PATH ADV_VEC_PATH
 
 # set env variables
 export OMP_NUM_THREADS=224 # there are 56x2x2 = 224 threads available in the CPU
+export OMP_TARGET_OFFLOAD="MANDATORY"
+export LIBOMPTARGET_DEBUG=1
+# export LIBOMPTARGET_PLUGIN=LEVEL0
+# export LIBOMPTARGET_PLUGIN_PROFILE=T,usec
+
 
 # compile code
 make lu CLASS=$RUN_CLASS

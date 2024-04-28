@@ -1,4 +1,5 @@
 .ipynb_checkpoints
+
 NPB-OMP/LU/.ipynb_checkpoints
 NPB-OMP/LU/lu.o
 NPB-OMP/LU/lu.opt.yaml
@@ -10,3 +11,17 @@ NPB-OMP/common/c_wtime.o
 NPB-OMP/common/c_print_results.o
 NPB-OMP/sys/setparams
 NPB-OMP/timer.flag
+NPB-OMP/timer.flag_
+
+NPB-OMP-GPU/LU/.ipynb_checkpoints
+NPB-OMP-GPU/LU/lu.o
+NPB-OMP-GPU/LU/lu.opt.yaml
+NPB-OMP-GPU/LU/lu.optrpt
+NPB-OMP-GPU/LU/npbparams.hpp
+NPB-OMP-GPU/vtune_hotspots
+NPB-OMP-GPU/common/c_timers.o
+NPB-OMP-GPU/common/c_wtime.o
+NPB-OMP-GPU/common/c_print_results.o
+NPB-OMP-GPU/sys/setparams
+NPB-OMP-GPU/timer.flag
+NPB-OMP-GPU/timer.flag_
