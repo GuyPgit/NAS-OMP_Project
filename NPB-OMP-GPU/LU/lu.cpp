@@ -2205,7 +2205,7 @@ void rhs(){
 	double flux[ISIZ1][5];
 
 	if(timeron){timer_start(T_RHS);}
-	#pragma omp for
+	#pragma omp target teams distribute parallel for map(tofrom: rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5], frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5], qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1], rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1], u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5])
 	for(k=0; k<nz; k++){
 		for(j=0; j<ny; j++){
 			for(i=0; i<nx; i++){
@@ -2221,6 +2221,7 @@ void rhs(){
 			}
 		}
 	}
+	#pragma omp barrier
 	if(timeron){timer_start(T_RHSX);}
 	/*
 	 * ---------------------------------------------------------------------

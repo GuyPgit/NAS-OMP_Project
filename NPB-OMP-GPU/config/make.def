@@ -61,7 +61,7 @@ CFLAGS += -fopenmp-targets=spir64  # for GPU offloading
 # size usually go here. 
 #---------------------------------------------------------------------------
 CLINKFLAGS = -Ofast -qopenmp -xSAPPHIRERAPIDS -ipo
-
+CLINKFLAGS += -fopenmp-targets=spir64  # for GPU offloading
 
 #---------------------------------------------------------------------------
 # Utilities C:
