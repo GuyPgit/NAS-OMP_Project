@@ -1,4 +1,5 @@
 .ipynb_checkpoints
+.vscode
 
 NPB-OMP/LU/.ipynb_checkpoints
 NPB-OMP/LU/lu.o
@@ -37,3 +38,4 @@ NPB-OMP-GPU/adv_gpu_roofline_opt
 NPB-OMP-GPU/config/context_values.cfg
 NPB-OMP-GPU/config/state.cfg
 
+OMP-GPU_parallelism_draft.cpp

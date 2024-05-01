@@ -4,7 +4,7 @@
 export OMP_NUM_THREADS=2 # there are 56x2x2 = 224 threads available in the CPU
 export OMP_TARGET_OFFLOAD=MANDATORY # controls the program behavior when offloading a target region
 # export LIBOMPTARGET_DEBUG=1 # controls whether debugging information will be displayed from the offload runtime
-# export LIBOMPTARGET_PLUGIN_PROFILE=T,usec # more accurate timer in profiler
+# export LIBOMPTARGET_PLUGIN_PROFILE=T,usec # enables basic plugin profiling and displays the result when program finishes. can be used to get HtD and DtH timings
 
 # set variables
 RUN_CLASS=A # should be in A-E
