@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # set env variables
-export OMP_NUM_THREADS=2 # there are 56x2x2 = 224 threads available in the CPU
+export OMP_NUM_THREADS=1 # there are 56x2x2 = 224 threads available in the CPU
 export OMP_TARGET_OFFLOAD=MANDATORY # controls the program behavior when offloading a target region
 # export LIBOMPTARGET_DEBUG=1 # controls whether debugging information will be displayed from the offload runtime
 # export LIBOMPTARGET_PLUGIN_PROFILE=T,usec # enables basic plugin profiling and displays the result when program finishes. can be used to get HtD and DtH timings
