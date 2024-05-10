@@ -102,7 +102,7 @@ void c_print_results(char* name,
 	}	
 	printf(" Total threads   =             %12s\n", totalthreads);
 	printf(" Iterations      =             %12d\n", niter); 
-	printf(" Time in seconds =             %12.2f\n", t);
+	printf(" Time in seconds =             %12.4f\n", t);
 	printf(" Mop/s total     =             %12.2f\n", mops);
 	printf(" Operation type  = %24s\n", optype);
 	if(passed_verification < 0){

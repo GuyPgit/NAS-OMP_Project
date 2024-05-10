@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # set env variables
-export OMP_NUM_THREADS=224 # there are 56x2x2 = 224 threads available in the CPU
+export OMP_NUM_THREADS=56 # there are 56x2x2 = 224 threads available in the CPU
 
 # set variables
-RUN_CLASS=B # should be in A-C
+RUN_CLASS=B # should be in S,W,A-D
 VTUNE_OR_ADV_RUN=0 # should be 0 or in 3-5
 USE_TIMER=0 # should be 0 or 1
 

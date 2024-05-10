@@ -3,11 +3,13 @@
 # set env variables
 export OMP_NUM_THREADS=1 # there are 56x2x2 = 224 threads available in the CPU
 export OMP_TARGET_OFFLOAD=MANDATORY # controls the program behavior when offloading a target region
-# export LIBOMPTARGET_DEBUG=1 # controls whether debugging information will be displayed from the offload runtime
+export NUM_GPUS_USED=1 # set how many gpus we wish to utilize. should be 1-4
+export IGC_ForceOCLSIMDWidth=16 # maximize SIMD usage in the GPU
 # export LIBOMPTARGET_PLUGIN_PROFILE=T,usec # enables basic plugin profiling and displays the result when program finishes. can be used to get HtD and DtH timings
+# export LIBOMPTARGET_DEBUG=1 # controls whether debugging information will be displayed from the offload runtime
 
 # set variables
-RUN_CLASS=A # should be in A-E
+RUN_CLASS=A # should be in A-D
 VTUNE_OR_ADV_RUN=0 # should be 0 or in 3-8
 USE_TIMER=0 # should be 0 or 1
 

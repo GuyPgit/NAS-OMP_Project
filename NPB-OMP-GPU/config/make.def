@@ -52,7 +52,7 @@ C_INC = -I../common
 CFLAGS	= -Ofast -qopenmp -xSAPPHIRERAPIDS -ipo  # removed usage of -mcmodel=medium as it seemed to sometimes slightly decrease performance
 # CFLAGS += -mprefer-vector-width=512 -qopt-mem-layout-trans=4  # these seems to slightly decrease perfomance so we opt out of using them. -xCORE-AVX512 seems to overlap with -xSAPPHIRERAPIDS
 # CFLAGS += -qopt-report=max  # add report information
-CFLAGS += -g -gline-tables-only -fdebug-info-for-profiling  # flags for debug
+# CFLAGS += -g -gline-tables-only -fdebug-info-for-profiling  # flags for debug
 CFLAGS += -fopenmp-targets=spir64  # for GPU offloading
 
 
