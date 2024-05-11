@@ -262,6 +262,7 @@ void eval_gpu_split_vars(int size_splitted, int index_offset, int force_single_t
 	// printf("DEBUG eval_gpu_split_vars: (thread_id, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d, force_single_thread=%d\n", thread_id, device_id, first_index, next_index - 1, size_splitted, force_single_thread);
 }
 
+// TEST 123
 /* map all the global arrays in full into all the gpus */
 void map_gpus_all_full(int is_enter) {
 	if (is_enter) {
