@@ -846,7 +846,7 @@ int main(int argc, char* argv[]){
 		setiv();
 	}
 
-	// map_gpus_all_full(1);
+	map_gpus_all_full(1);
 
 	// #pragma omp parallel num_threads(num_devices)
 	#pragma omp parallel
