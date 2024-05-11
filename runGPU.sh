@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # set env variables
-export OMP_NUM_THREADS=1 # there are 56x2x2 = 224 threads available in the CPU
-export OMP_TARGET_OFFLOAD=MANDATORY # controls the program behavior when offloading a target region
+export OMP_NUM_THREADS=56 # there are 56x2x2 = 224 threads available in the CPU
 export NUM_GPUS_USED=1 # set how many gpus we wish to utilize. should be 1-4
+export OMP_TARGET_OFFLOAD=MANDATORY # controls the program behavior when offloading a target region
 export IGC_ForceOCLSIMDWidth=16 # maximize SIMD usage in the GPU
 # export LIBOMPTARGET_PLUGIN_PROFILE=T,usec # enables basic plugin profiling and displays the result when program finishes. can be used to get HtD and DtH timings
 # export LIBOMPTARGET_DEBUG=1 # controls whether debugging information will be displayed from the offload runtime
