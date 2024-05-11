@@ -848,8 +848,7 @@ int main(int argc, char* argv[]){
 
 	map_gpus_all_full(1);
 
-	// #pragma omp parallel num_threads(num_devices)
-	#pragma omp parallel
+	#pragma omp parallel num_threads(num_devices)
 	{
 		/*
 		 * ---------------------------------------------------------------------
@@ -1002,8 +1001,16 @@ void blts(int nx,
 	// #pragma omp target teams distribute parallel for device(device_id) map(tofrom: v[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5], ldz[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) nowait schedule(static) // redundant 
 	// #pragma omp target teams distribute parallel for device(device_id) // FOR 1 GPUS = THREADS: UNSUCCESSFUL RESULT WHEN ADDING nowait, ADDING schedule(static) SEEMS TO BE OK BUT ITS FINE WITHOUT IT TOO
 	// for (j = first_index; j < next_index; j++) {
-	#pragma omp for nowait schedule(static)
-	for(j=jst; j<jend; j++){
+
+
+	// SUCCESSFUL FOR 1 GPU
+	eval_gpu_split_vars(jend-jst, jst, 0);
+	update_gpus_rsd(1, 1);
+	update_gpus_a(0, 1);
+	#pragma omp target teams distribute parallel for collapse(3) private(j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (j = first_index; j < next_index; j++) {
+	// #pragma omp for nowait schedule(static)
+	// for(j=jst; j<jend; j++){
 		for(i=ist; i<iend; i++){
 			for(m=0; m<5; m++){
 				v[k][j][i][m]= v[k][j][i][m]
@@ -1015,6 +1022,9 @@ void blts(int nx,
 			}
 		}
 	}
+	update_gpus_a(0, 0);
+
+
 	// #pragma omp barrier // possibly redundant 
 	// map_gpus_rsd(1, 0);
 	// map_gpus_a(0, 0);
@@ -1422,11 +1432,11 @@ void erhs(){
 	// double flux[ISIZ1][5];
 
 	// SUCCESSFUL FOR 1-4 GPUS
-	// eval_gpu_split_vars(nz, 0, 0);
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=0; k<nz; k++){
+	eval_gpu_split_vars(nz, 0, 0);
+	#pragma omp target teams distribute parallel for collapse(4) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=0; k<nz; k++){
 		for(j=0; j<ny; j++){
 			for(i=0; i<nx; i++){
 				for(m=0; m<5; m++){
@@ -1438,10 +1448,10 @@ void erhs(){
 
 	// SUCCESSFUL FOR 1-4 GPUS
 	// same eval_gpu_split_vars as the previous section
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=0; k<nz; k++){
+	#pragma omp target teams distribute parallel for collapse(4) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=0; k<nz; k++){
 		zeta=((double)k)/(nz-1);
 		for(j=0; j<ny; j++){
 			eta=((double)j)/(ny0-1 );
@@ -1465,9 +1475,9 @@ void erhs(){
 			}
 		}
 	}
-	// update_gpus_frct(0, 0);
-	// update_gpus_rsd(0, 0);
-	// #pragma omp barrier
+	update_gpus_frct(0, 0);
+	update_gpus_rsd(0, 0);
+	#pragma omp barrier
 
 	/*
 	 * ---------------------------------------------------------------------
@@ -1475,13 +1485,13 @@ void erhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1-4 GPUS
-	// eval_gpu_split_vars(nz-2, 1, 0);
-	// update_gpus_frct(0, 1);
-	// update_gpus_rsd(0, 1);
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=1; k<nz-1; k++){
+	eval_gpu_split_vars(nz-2, 1, 0);
+	update_gpus_frct(0, 1);
+	update_gpus_rsd(0, 1);
+	#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=1; k<nz-1; k++){
 		for(j=jst; j<jend; j++){
 			for(i=0; i<nx; i++){
 				flux_g[k][j][i][0]=rsd[k][j][i][1];
@@ -1595,10 +1605,10 @@ void erhs(){
 	 */
 	// SUCCESSFUL FOR 1-4 GPUS
 	// same eval_gpu_split_vars as the previous section	
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=1; k<nz-1; k++){
+	#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=1; k<nz-1; k++){
 		for(i=ist; i<iend; i++){
 			for(j=0; j<ny; j++){
 				flux_g[k][j][i][0]=rsd[k][j][i][2];
@@ -1704,9 +1714,9 @@ void erhs(){
 			}
 		}
 	}
-	// update_gpus_frct(0, 0);
-	// update_gpus_rsd(0, 0);
-	// #pragma omp barrier
+	update_gpus_frct(0, 0);
+	update_gpus_rsd(0, 0);
+	#pragma omp barrier
 	
 	/*
 	 * ---------------------------------------------------------------------
@@ -1714,15 +1724,15 @@ void erhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
-	// #pragma omp single
-	// {
-	// 	eval_gpu_split_vars(jend-jst, jst, 1);
-	// 	update_gpus_frct(1, 1);
-	// 	update_gpus_rsd(1, 1);
-	// 	#pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// 	for (j = first_index; j < next_index; j++) {
-		#pragma omp for
-		for(j=jst; j<jend; j++){
+	#pragma omp single
+	{
+		eval_gpu_split_vars(jend-jst, jst, 1);
+		update_gpus_frct(1, 1);
+		update_gpus_rsd(1, 1);
+		#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+		for (j = first_index; j < next_index; j++) {
+		// #pragma omp for
+		// for(j=jst; j<jend; j++){
 			for(i=ist; i<iend; i++){
 				for(k=0; k<nz; k++){
 					flux_g[k][j][i][0]=rsd[k][j][i][3];
@@ -1828,9 +1838,9 @@ void erhs(){
 				}
 			}
 		}
-	// 	update_gpus_frct(1, 0);
-	// 	update_gpus_rsd(1, 0);
-	// }
+		update_gpus_frct(1, 0);
+		update_gpus_rsd(1, 0);
+	}
 }
 
 /*
@@ -2525,10 +2535,15 @@ void l2norm(int nx0,
 		sum[m] = 0.0;
 	}
 
-	#pragma omp for nowait
-	for(k=1; k<nz0-1; k++){
+	// UNSUCCESSFUL FOR 1 GPU
+	// eval_gpu_split_vars(iend-ist, ist, 0);
+	// update_gpus_rsd(0, 1);
+	// #pragma omp target teams distribute parallel for collapse(3) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	// for (i = first_index; i < next_index; i++) {
+	#pragma omp for nowait collapse(3) private(k,j,i)
+	for(i=ist; i<iend; i++){
 		for(j=jst; j<jend; j++){
-			for(i=ist; i<iend; i++){
+			for(k=1; k<nz0-1; k++){
 				sum0 = sum0 + v[i][j][k][0] * v[i][j][k][0];
 				sum1 = sum1 + v[i][j][k][1] * v[i][j][k][1];
 				sum2 = sum2 + v[i][j][k][2] * v[i][j][k][2];
@@ -2809,7 +2824,7 @@ void rhs(){
 	int i, j, k, m;
 	double q;
 	double tmp;
-	double utmp[ISIZ3][6], rtmp[ISIZ3][5];
+	// double utmp[ISIZ3][6], rtmp[ISIZ3][5];
 	double u21, u31, u41;
 	double u21i, u31i, u41i, u51i;
 	double u21j, u31j, u41j, u51j;
@@ -2823,14 +2838,14 @@ void rhs(){
 
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
 	// printf("DEBUG BEFORE: omp_get_thread_num=%d, u[0][1][2][3]=%f frct[0][1][2][3]=%f, rsd[0][1][2][3]=%f qs[0][1][2]=%f rho_i[0][1][2]=%f\n", omp_get_thread_num(), u[0][1][2][3], frct[0][1][2][3], rsd[0][1][2][3], qs[0][1][2], rho_i[0][1][2]);
-	// eval_gpu_split_vars(nz, 0, 1);
+	eval_gpu_split_vars(nz, 0, 1);
 	// printf("DEBUG 2: (thread_id, omp_get_thread_num, device_id)=(%d, %d, %d) omp_get_num_threads=%d\n", thread_id, omp_get_thread_num(), device_id, omp_get_num_threads());
-	// update_gpus_u(0, 1);
-	// update_gpus_frct(0, 1);
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=0; k<nz; k++){
+	update_gpus_u(0, 1);
+	update_gpus_frct(0, 1);
+	#pragma omp target teams distribute parallel for collapse(3) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=0; k<nz; k++){
 		for(j=0; j<ny; j++){			
 			for(i=0; i<nx; i++){
 				for(m=0; m<5; m++){
@@ -2845,9 +2860,9 @@ void rhs(){
 			}
 		}
 	}
-	// update_gpus_rsd(0, 0);
-	// update_gpus_qs(0, 0);
-	// update_gpus_rho_i(0, 0);
+	update_gpus_rsd(0, 0);
+	update_gpus_qs(0, 0);
+	update_gpus_rho_i(0, 0);
 	// printf("DEBUG AFTER: omp_get_thread_num=%d, u[0][1][2][3]=%f frct[0][1][2][3]=%f, rsd[0][1][2][3]=%f qs[0][1][2]=%f rho_i[0][1][2]=%f\n", omp_get_thread_num(), u[0][1][2][3], frct[0][1][2][3], rsd[0][1][2][3], qs[0][1][2], rho_i[0][1][2]);
 	// printf("DEBUG OUTSIDE AFTER: omp_get_thread_num=%d, u[0][1][2][3]=%f frct[0][1][2][3]=%f, rsd[0][1][2][3]=%f qs[0][1][2]=%f rho_i[0][1][2]=%f\n", omp_get_thread_num(), u[0][1][2][3], frct[0][1][2][3], rsd[0][1][2][3], qs[0][1][2], rho_i[0][1][2]);
 
@@ -2858,15 +2873,15 @@ void rhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
-	// eval_gpu_split_vars(nz-2, 1, 1);
-	// update_gpus_u(0, 1);
-	// update_gpus_rsd(0, 1);
-	// update_gpus_qs(0, 1);
-	// update_gpus_rho_i(0, 1);
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=1; k<nz-1; k++){
+	eval_gpu_split_vars(nz-2, 1, 1);
+	update_gpus_u(0, 1);
+	update_gpus_rsd(0, 1);
+	update_gpus_qs(0, 1);
+	update_gpus_rho_i(0, 1);
+	#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=1; k<nz-1; k++){
 		for(j=jst; j<jend; j++){
 			for(i=0; i<nx; i++){
 				flux_g[k][j][i][0]=u[k][j][i][1];
@@ -2969,7 +2984,7 @@ void rhs(){
 			}
 		}
 	}
-	// update_gpus_rsd(0, 0);
+	update_gpus_rsd(0, 0);
 
 	if(timeron){timer_stop(T_RHSX);}
 	if(timeron){timer_start(T_RHSY);}
@@ -2981,14 +2996,14 @@ void rhs(){
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
 	// same eval_gpu_split_vars as the previous section
-	// update_gpus_u(0, 1);
-	// update_gpus_rsd(0, 1);
-	// update_gpus_qs(0, 1);
-	// update_gpus_rho_i(0, 1);
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
-	// for (k = first_index; k < next_index; k++) {
-	#pragma omp for
-	for(k=1; k<nz-1; k++){
+	update_gpus_u(0, 1);
+	update_gpus_rsd(0, 1);
+	update_gpus_qs(0, 1);
+	update_gpus_rho_i(0, 1);
+	#pragma omp target teams distribute parallel for private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
+	for (k = first_index; k < next_index; k++) {
+	// #pragma omp for
+	// for(k=1; k<nz-1; k++){
 		for(i=ist; i<iend; i++){
 			for(j=0; j<ny; j++){
 				flux_g[k][j][i][0]=u[k][j][i][2];
@@ -3097,7 +3112,7 @@ void rhs(){
 			}
 		}
 	}
-	// update_gpus_rsd(0, 0);
+	update_gpus_rsd(0, 0);
 
 	if(timeron){timer_stop(T_RHSY);}
 	if(timeron){timer_start(T_RHSZ);}
@@ -3106,17 +3121,17 @@ void rhs(){
 	 * zeta-direction flux differences
 	 * ---------------------------------------------------------------------
 	 */
-	// UNSUCCESSFUL EVEN FOR 1 GPU (ONLY WITH 1 THREAD)
-	// eval_gpu_split_vars(jend-jst, jst, 1);
-	// update_gpus_u(1, 1);
-	// update_gpus_rsd(1, 1);
-	// update_gpus_qs(1, 1);
-	// update_gpus_rho_i(1, 1);
-	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)	
-	// for (j = first_index; j < next_index; j++) {
-		// double utmp[ISIZ3][6], rtmp[ISIZ3][5];
-	#pragma omp for
-	for(j=jst; j<jend; j++){
+	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
+	eval_gpu_split_vars(jend-jst, jst, 1);
+	update_gpus_u(1, 1);
+	update_gpus_rsd(1, 1);
+	update_gpus_qs(1, 1);
+	update_gpus_rho_i(1, 1);
+	#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)	
+	for (j = first_index; j < next_index; j++) {
+		double utmp[ISIZ3][6], rtmp[ISIZ3][5];
+	// #pragma omp for
+	// for(j=jst; j<jend; j++){
 		for(i=ist; i<iend; i++){
 			for(k=0; k<nz; k++){
 				utmp[k][0]=u[k][j][i][0];
@@ -3227,7 +3242,7 @@ void rhs(){
 			}
 		}
 	}
-	// update_gpus_rsd(1, 0);
+	update_gpus_rsd(1, 0);
 
 	if(timeron){timer_stop(T_RHSZ);}
 	if(timeron){timer_stop(T_RHS);}
@@ -3510,7 +3525,7 @@ void ssor(int niter){
 	 * formed, if applicable on given architecture, before timestepping).
 	 * ---------------------------------------------------------------------
 	 */
-	#pragma omp parallel for private(i,j,n,m)
+	#pragma omp parallel for collapse(4) private(i,j,n,m)
 	for(j=0; j<ISIZ2; j++){
 		for(i=0; i<ISIZ1; i++){
 			for(n=0; n<5; n++){
@@ -3754,10 +3769,12 @@ void ssor(int niter){
 			 * compute the steady-state residuals
 			 * ---------------------------------------------------------------------
 			 */
+			#pragma omp barrier
 			#pragma omp single 
 			{
 				rhs();
 			}
+			#pragma omp barrier
 			/*
 			 * ---------------------------------------------------------------------
 			 * compute the max-norms of newton iteration residuals
