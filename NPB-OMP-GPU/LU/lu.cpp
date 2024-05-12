@@ -240,12 +240,13 @@ void init_gpu_off_vars() { /* set some global variables needed for GPU offloadin
 	num_devices = (num_gpus_used <= omp_get_num_devices()) ? num_gpus_used : omp_get_num_devices();	
 }
 
-/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the current number of available threads */
-void eval_gpu_split_vars(int size_splitted, int index_offset, int force_single_thread) { 
-	int num_threads, chunk_size, chunk_residual;
+/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the number of threads */
+void eval_gpu_split_by_thread(int size_splitted, int index_offset, int force_single_thread) { 
+	int num_threads, chunk_size, chunk_residual;	
 	if (force_single_thread) { // only 1 thread
 		thread_id = omp_get_thread_num();
-		device_id = thread_id % num_devices;
+		// device_id = thread_id % num_devices;
+		device_id = 0;
 		first_index = index_offset;
 		chunk_size_final = size_splitted;
 		next_index = first_index + chunk_size_final;
@@ -260,7 +261,18 @@ void eval_gpu_split_vars(int size_splitted, int index_offset, int force_single_t
 		chunk_size_final = chunk_size + chunk_residual;
 		next_index = first_index + chunk_size_final;
 	}
-	// printf("DEBUG eval_gpu_split_vars: (thread_id, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d, force_single_thread=%d\n", thread_id, device_id, first_index, next_index - 1, size_splitted, force_single_thread);
+	printf("DEBUG eval_gpu_split_by_thread: (thread_id, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d, force_single_thread=%d\n", thread_id, device_id, first_index, next_index - 1, size_splitted, force_single_thread);
+}
+
+/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the number of devices */
+void eval_gpu_split_by_device(int size_splitted, int index_offset, int device_id, int num_devices) {
+	int chunk_size, chunk_residual;	
+	chunk_size = size_splitted / num_devices;
+	chunk_residual = (device_id == num_devices - 1) ? (size_splitted % num_devices) : 0;
+	first_index = index_offset + device_id * chunk_size;
+	chunk_size_final = chunk_size + chunk_residual;
+	next_index = first_index + chunk_size_final;
+	// printf("DEBUG eval_gpu_split_by_device: (omp_get_thread_num, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d\n", omp_get_thread_num(), device_id, first_index, next_index - 1, size_splitted);
 }
 
 /* map all the global arrays in full into all the gpus */
@@ -994,7 +1006,7 @@ void blts(int nx,
 	double tmat[5][5], tv[5];
 
 	// SUCCESSFUL FOR 1 GPUS = THREADS, FAILS FOR 2 GPUS = THREADS (Libomptarget fatal error 1: failure of target construct while offloading is mandatory)
-	// eval_gpu_split_vars(jend - jst, jst);
+	// eval_gpu_split_by_thread(jend - jst, jst);
 	// printf("DEBUG 3: (thread_id, omp_get_thread_num) = (%d, %d), (omp_get_num_threads, omp_get_max_threads) = (%d, %d), device_id = %d, omp_in_parallel = %d\n", thread_id, omp_get_thread_num(), omp_get_num_threads(), omp_get_max_threads(), device_id, omp_in_parallel());
 	// map_gpus_rsd(1, 1);
 	// map_gpus_a(0, 1);
@@ -1003,14 +1015,14 @@ void blts(int nx,
 	// for (j = first_index; j < next_index; j++) {
 
 
-	// SUCCESSFUL FOR 1 GPU
-	eval_gpu_split_vars(jend-jst, jst, 0);
-	update_gpus_rsd(1, 1);
-	update_gpus_a(0, 1);
-	#pragma omp target teams distribute parallel for collapse(3) private(j,i,m) device(device_id) num_teams(chunk_size_final)
-	for (j = first_index; j < next_index; j++) {
-	// #pragma omp for nowait schedule(static)
-	// for(j=jst; j<jend; j++){
+	// UNSUCCESSFUL FOR 1 GPU
+	// eval_gpu_split_by_thread(jend-jst, jst, 0);
+	// update_gpus_rsd(1, 1);
+	// update_gpus_a(0, 1);
+	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+	// for (j = first_index; j < next_index; j++) {
+	#pragma omp for nowait schedule(static)
+	for(j=jst; j<jend; j++){
 		for(i=ist; i<iend; i++){
 			for(m=0; m<5; m++){
 				v[k][j][i][m]= v[k][j][i][m]
@@ -1022,7 +1034,7 @@ void blts(int nx,
 			}
 		}
 	}
-	update_gpus_a(0, 0);
+	// update_gpus_a(0, 0);
 
 
 	// #pragma omp barrier // possibly redundant 
@@ -1432,7 +1444,12 @@ void erhs(){
 	// double flux[ISIZ1][5];
 
 	// SUCCESSFUL FOR 1-4 GPUS
-	eval_gpu_split_vars(nz, 0, 0);
+	// #pragma omp parallel for num_threads(num_devices)
+	// for (int device_id = 0; device_id < num_devices; device_id++) {
+	// eval_gpu_split_by_device(nz, 0, device_id, num_devices);
+	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+	// for (k = first_index; k < next_index; k++) {
+	eval_gpu_split_by_thread(nz, 0, 0);
 	#pragma omp target teams distribute parallel for collapse(4) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
 	for (k = first_index; k < next_index; k++) {
 	// #pragma omp for
@@ -1445,9 +1462,15 @@ void erhs(){
 			}
 		}
 	}
+	// }
 
 	// SUCCESSFUL FOR 1-4 GPUS
-	// same eval_gpu_split_vars as the previous section
+	// #pragma omp parallel for num_threads(num_devices)
+	// for (int device_id = 0; device_id < num_devices; device_id++) {
+	// eval_gpu_split_by_device(nz, 0, device_id, num_devices);
+	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+	// for (k = first_index; k < next_index; k++) {
+	// same eval_gpu_split_by_thread as the previous section
 	#pragma omp target teams distribute parallel for collapse(4) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
 	for (k = first_index; k < next_index; k++) {
 	// #pragma omp for
@@ -1477,6 +1500,7 @@ void erhs(){
 	}
 	update_gpus_frct(0, 0);
 	update_gpus_rsd(0, 0);
+	// }
 	#pragma omp barrier
 
 	/*
@@ -1485,7 +1509,14 @@ void erhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1-4 GPUS
-	eval_gpu_split_vars(nz-2, 1, 0);
+	// #pragma omp parallel for num_threads(num_devices)
+	// for (int device_id = 0; device_id < num_devices; device_id++) {
+	// eval_gpu_split_by_device(nz-2, 1, device_id, num_devices);
+	// update_gpus_frct(0, 1);
+	// update_gpus_rsd(0, 1);
+	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+	// for (k = first_index; k < next_index; k++) {
+	eval_gpu_split_by_thread(nz-2, 1, 0);
 	update_gpus_frct(0, 1);
 	update_gpus_rsd(0, 1);
 	#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
@@ -1597,6 +1628,7 @@ void erhs(){
 			}
 		}
 	}
+	// }
 
 	/*
 	 * ---------------------------------------------------------------------
@@ -1604,7 +1636,12 @@ void erhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1-4 GPUS
-	// same eval_gpu_split_vars as the previous section	
+	// #pragma omp parallel for num_threads(num_devices)
+	// for (int device_id = 0; device_id < num_devices; device_id++) {
+	// eval_gpu_split_by_device(nz-2, 1, device_id, num_devices);
+	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+	// for (k = first_index; k < next_index; k++) {
+	// same eval_gpu_split_by_thread as the previous section	
 	#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
 	for (k = first_index; k < next_index; k++) {
 	// #pragma omp for
@@ -1716,6 +1753,7 @@ void erhs(){
 	}
 	update_gpus_frct(0, 0);
 	update_gpus_rsd(0, 0);
+	// }
 	#pragma omp barrier
 	
 	/*
@@ -1724,9 +1762,16 @@ void erhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
+	// #pragma omp parallel for num_threads(1)
+	// for (int device_id = 0; device_id < 1; device_id++) {
+	// eval_gpu_split_by_device(jend-jst, jst, device_id, 1);
+	// update_gpus_frct(1, 1);
+	// update_gpus_rsd(1, 1);
+	// #pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+	// for (j = first_index; j < next_index; j++) {
 	#pragma omp single
 	{
-		eval_gpu_split_vars(jend-jst, jst, 1);
+		eval_gpu_split_by_thread(jend-jst, jst, 1);
 		update_gpus_frct(1, 1);
 		update_gpus_rsd(1, 1);
 		#pragma omp target teams distribute parallel for collapse(2) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
@@ -1841,6 +1886,7 @@ void erhs(){
 		update_gpus_frct(1, 0);
 		update_gpus_rsd(1, 0);
 	}
+	// }
 }
 
 /*
@@ -2536,7 +2582,7 @@ void l2norm(int nx0,
 	}
 
 	// UNSUCCESSFUL FOR 1 GPU
-	// eval_gpu_split_vars(iend-ist, ist, 0);
+	// eval_gpu_split_by_thread(iend-ist, ist, 0);
 	// update_gpus_rsd(0, 1);
 	// #pragma omp target teams distribute parallel for collapse(3) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
 	// for (i = first_index; i < next_index; i++) {
@@ -2838,10 +2884,10 @@ void rhs(){
 
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
 	// printf("DEBUG BEFORE: omp_get_thread_num=%d, u[0][1][2][3]=%f frct[0][1][2][3]=%f, rsd[0][1][2][3]=%f qs[0][1][2]=%f rho_i[0][1][2]=%f\n", omp_get_thread_num(), u[0][1][2][3], frct[0][1][2][3], rsd[0][1][2][3], qs[0][1][2], rho_i[0][1][2]);
-	eval_gpu_split_vars(nz, 0, 1);
-	// printf("DEBUG 2: (thread_id, omp_get_thread_num, device_id)=(%d, %d, %d) omp_get_num_threads=%d\n", thread_id, omp_get_thread_num(), device_id, omp_get_num_threads());
+	eval_gpu_split_by_thread(nz, 0, 1);
 	update_gpus_u(0, 1);
 	update_gpus_frct(0, 1);
+	printf("DEBUG 2: (thread_id, omp_get_thread_num, device_id)=(%d, %d, %d) omp_get_num_threads=%d\n", thread_id, omp_get_thread_num(), device_id, omp_get_num_threads());
 	#pragma omp target teams distribute parallel for collapse(3) private(k,j,i,m) device(device_id) num_teams(chunk_size_final)
 	for (k = first_index; k < next_index; k++) {
 	// #pragma omp for
@@ -2873,7 +2919,7 @@ void rhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
-	eval_gpu_split_vars(nz-2, 1, 1);
+	eval_gpu_split_by_thread(nz-2, 1, 1);
 	update_gpus_u(0, 1);
 	update_gpus_rsd(0, 1);
 	update_gpus_qs(0, 1);
@@ -2995,7 +3041,7 @@ void rhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
-	// same eval_gpu_split_vars as the previous section
+	// same eval_gpu_split_by_thread as the previous section
 	update_gpus_u(0, 1);
 	update_gpus_rsd(0, 1);
 	update_gpus_qs(0, 1);
@@ -3122,7 +3168,7 @@ void rhs(){
 	 * ---------------------------------------------------------------------
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
-	eval_gpu_split_vars(jend-jst, jst, 1);
+	eval_gpu_split_by_thread(jend-jst, jst, 1);
 	update_gpus_u(1, 1);
 	update_gpus_rsd(1, 1);
 	update_gpus_qs(1, 1);
@@ -3591,7 +3637,7 @@ void ssor(int niter){
 					timer_start(T_RHS);
 			}			
 			// SUCCESSFUL FOR 1 GPUS = THREADS, FAILS FOR 2 GPUS = THREADS (Segmentation fault)
-			// eval_gpu_split_vars(nz - 2, 1);
+			// eval_gpu_split_by_thread(nz - 2, 1);
 			// printf("DEBUG 1: (thread_id, device_id) = (%d, %d), omp_get_thread_num = %d, omp_get_num_threads = %d\n", thread_id, device_id, omp_get_thread_num(), omp_get_num_threads());
 			// map_gpus_rsd(0, 1);
 			// #pragma omp target teams distribute parallel for device(device_id)
@@ -3769,12 +3815,10 @@ void ssor(int niter){
 			 * compute the steady-state residuals
 			 * ---------------------------------------------------------------------
 			 */
-			#pragma omp barrier
 			#pragma omp single 
 			{
 				rhs();
 			}
-			#pragma omp barrier
 			/*
 			 * ---------------------------------------------------------------------
 			 * compute the max-norms of newton iteration residuals
