@@ -105,9 +105,10 @@ Authors of the OpenMP code:
 #define T_LAST 11
 
 #define USE_GPU_ERHS 1
-#define USE_GPU_RHS 1
-#define USE_GPU_BLTS 1
-#define USE_GPU ( (USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) )
+#define USE_GPU_RHS 0
+#define USE_GPU_BLTS 0
+#define USE_GPU_BUTS 0
+#define USE_GPU ((USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) || (USE_GPU_BUTS))
 
 /* global variables */
 #if defined(DO_NOT_ALLOCATE_ARRAYS_WITH_DYNAMIC_MEMORY_AND_AS_SINGLE_DIMENSION)
@@ -161,15 +162,17 @@ static int itmax, invert;
 static double maxtime;
 static boolean timeron;
 
-/* additional variables used for GPU offloading */
-/* the following be shared since it does not change in the middle of the run */
-int num_devices;
-/* the following should be threadprivate */
-int thread_id;
-int device_id;
-int first_index;
-int chunk_size_final;
-int next_index;
+#if USE_GPU
+	/* additional variables used for GPU offloading */
+	/* the following be shared since it does not change in the middle of the run */
+	int num_devices;
+	/* the following should be threadprivate */
+	int thread_id;
+	int device_id;
+	int first_index;
+	int chunk_size_final;
+	int next_index;
+#endif
 
 /* function prototypes */
 void blts(int nx,
@@ -239,380 +242,362 @@ void verify(double xcr[],
 static boolean flag[ISIZ1/2*2+1];
 static boolean flag2[ISIZ1/2*2+1];
 
-/* initialize variables needed for GPU offloading */
-void init_gpu_off_vars() { /* set some global variables needed for GPU offloading */
-	char* num_gpus_used_str = getenv("NUM_GPUS_USED");
-	int num_gpus_used = atoi(num_gpus_used_str);
-	num_devices = (num_gpus_used <= omp_get_num_devices()) ? num_gpus_used : omp_get_num_devices();	
-}
 
-/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the number of threads */
-void eval_gpu_split_by_thread(int size_splitted, int index_offset, int num_threads, int force_single_thread) { 
-	int chunk_size, chunk_residual;	
-	if (force_single_thread) { // only 1 thread
-		thread_id = omp_get_thread_num();
-		device_id = thread_id % num_devices;
-		first_index = index_offset;
-		chunk_size_final = size_splitted;
-		next_index = index_offset + chunk_size_final;
+#if USE_GPU
+	/* initialize variables needed for GPU offloading */
+	void init_gpu_off_vars() { /* set some global variables needed for GPU offloading */
+		char* num_gpus_used_str = getenv("NUM_GPUS_USED");
+		int num_gpus_used = atoi(num_gpus_used_str);
+		num_devices = (num_gpus_used <= omp_get_num_devices()) ? num_gpus_used : omp_get_num_devices();	
 	}
-	else {
-		thread_id = omp_get_thread_num();
-		device_id = thread_id % num_devices;
-		chunk_size = size_splitted / num_threads;
-		chunk_residual = (thread_id == num_threads - 1) ? (size_splitted % num_threads) : 0; // used to handle the last chunk
-		first_index = index_offset + thread_id * chunk_size;
+
+	/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the number of threads */
+	void eval_gpu_split_by_thread(int size_splitted, int index_offset, int num_threads, int force_single_thread) { 
+		if (force_single_thread) { // only 1 thread
+			thread_id = omp_get_thread_num();
+			device_id = thread_id % num_devices;
+			first_index = index_offset;
+			chunk_size_final = size_splitted;
+			next_index = index_offset + chunk_size_final;
+		}
+		else {
+			thread_id = omp_get_thread_num();
+			device_id = thread_id % num_devices;
+			int chunk_size = size_splitted / num_threads;
+			int chunk_residual = (thread_id == num_threads - 1) ? (size_splitted % num_threads) : 0; // used to handle the last chunk
+			first_index = index_offset + thread_id * chunk_size;
+			chunk_size_final = chunk_size + chunk_residual;
+			next_index = first_index + chunk_size_final;
+		}
+		// printf("DEBUG eval_gpu_split_by_thread: (omp_get_thread_num, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d, force_single_thread=%d\n", omp_get_thread_num(), device_id, first_index, next_index - 1, size_splitted, force_single_thread);
+	}
+
+	/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the number of devices */
+	void eval_gpu_split_by_device(int size_splitted, int index_offset, int device_id, int num_devices) {
+		int chunk_size, chunk_residual;	
+		chunk_size = size_splitted / num_devices;
+		chunk_residual = (device_id == num_devices - 1) ? (size_splitted % num_devices) : 0;
+		first_index = index_offset + device_id * chunk_size;
 		chunk_size_final = chunk_size + chunk_residual;
 		next_index = first_index + chunk_size_final;
+		// printf("DEBUG eval_gpu_split_by_device: (omp_get_thread_num, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d\n", omp_get_thread_num(), device_id, first_index, next_index - 1, size_splitted);
 	}
-	// printf("DEBUG eval_gpu_split_by_thread: (omp_get_thread_num, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d, force_single_thread=%d\n", omp_get_thread_num(), device_id, first_index, next_index - 1, size_splitted, force_single_thread);
-}
 
-/* evaluate variables for splitting the domain of arrays to different GPUs. performs the split in accordance to the number of devices */
-void eval_gpu_split_by_device(int size_splitted, int index_offset, int device_id, int num_devices) {
-	int chunk_size, chunk_residual;	
-	chunk_size = size_splitted / num_devices;
-	chunk_residual = (device_id == num_devices - 1) ? (size_splitted % num_devices) : 0;
-	first_index = index_offset + device_id * chunk_size;
-	chunk_size_final = chunk_size + chunk_residual;
-	next_index = first_index + chunk_size_final;
-	// printf("DEBUG eval_gpu_split_by_device: (omp_get_thread_num, device_id)=(%d,%d), split index in [%d,%d], size_splitted=%d\n", omp_get_thread_num(), device_id, first_index, next_index - 1, size_splitted);
-}
+	/* map all the global arrays in full into all the gpus */
+	void map_gpus_all_to_full() {
+		#pragma omp parallel for num_threads(num_devices)
+		for (int device_id = 0; device_id < num_devices; device_id++) {
+			#pragma omp target enter data map(to: u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			#pragma omp target enter data map(to: rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			#pragma omp target enter data map(to: frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			#pragma omp target enter data map(to: flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+			#pragma omp target enter data map(to: qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			#pragma omp target enter data map(to: rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			#pragma omp target enter data map(to: a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target enter data map(to: b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target enter data map(to: c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target enter data map(to: d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target enter data map(to: ce[0:13][0:5]) device(device_id)
+		}
+	}
 
-/* map all the global arrays in full into all the gpus */
-void map_gpus_all_to_full() {
-	#pragma omp parallel for num_threads(num_devices)
-	for (int device_id = 0; device_id < num_devices; device_id++) {
-		#pragma omp target enter data map(to: u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		#pragma omp target enter data map(to: rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		#pragma omp target enter data map(to: frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		#pragma omp target enter data map(to: flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-		#pragma omp target enter data map(to: qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		#pragma omp target enter data map(to: rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		#pragma omp target enter data map(to: a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		#pragma omp target enter data map(to: b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		#pragma omp target enter data map(to: c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		#pragma omp target enter data map(to: d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		#pragma omp target enter data map(to: ce[0:13][0:5]) device(device_id)
+	/* delete all the global arrays in full from all the gpus */
+	void map_gpus_all_delete_full() {
+		#pragma omp parallel for num_threads(num_devices)
+		for (int device_id = 0; device_id < num_devices; device_id++) {
+			#pragma omp target exit data map(delete: u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			#pragma omp target exit data map(delete: rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			#pragma omp target exit data map(delete: a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			#pragma omp target exit data map(delete: ce[0:13][0:5]) device(device_id)
+		}
+		printf("map_gpus_all_delete_full - FINISHED\n");
 	}
-}
 
-
-/* update all the global arrays to/from the gpus */
-// void update_gpus_all_full(int is_to) {
-// 	if (is_to) {
-// 		#pragma omp parallel for num_threads(num_devices)
-// 		for (int device_id = 0; device_id < num_devices; device_id++) {
-// 			#pragma omp target update to(u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 			#pragma omp target update to(rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 			#pragma omp target update to(frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 			#pragma omp target update to(flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-// 			#pragma omp target update to(qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-// 			#pragma omp target update to(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-// 			#pragma omp target update to(a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 			#pragma omp target update to(b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 			#pragma omp target update to(c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 			#pragma omp target update to(d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 			#pragma omp target update to(ce[0:13][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-		// #pragma omp parallel for num_threads(num_devices)
-		// for (int device_id = 0; device_id < num_devices; device_id++) {
-		// 	#pragma omp target update from(u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		// 	#pragma omp target update from(rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		// 	#pragma omp target update from(frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		// 	#pragma omp target update from(flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-		// 	#pragma omp target update from(qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		// 	#pragma omp target update from(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		// 	#pragma omp target update from(a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		// 	#pragma omp target update from(b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		// 	#pragma omp target update from(c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		// 	#pragma omp target update from(d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		// 	#pragma omp target update from(ce[0:13][0:5]) device(device_id)
-		// }
-// 	}
-// }
-
-
-/* functions updating the global arrays to/from the gpus */
-void update_gpus_u(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+	/* functions updating the global arrays to/from the gpus */
+	void update_gpus_u(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(u[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(u[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update to(u[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(u[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(u[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update to(u[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(u[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(u[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update from(u[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
 	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(u[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+	void update_gpus_rsd(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(rsd[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(rsd[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update to(rsd[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(u[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(u[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update from(u[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-		}
-	}
-}
-void update_gpus_rsd(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(rsd[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(rsd[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update to(rsd[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-		}
-	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(rsd[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(rsd[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update from(rsd[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(rsd[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(rsd[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(rsd[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update from(rsd[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
 	}
-}
-void update_gpus_frct(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+	void update_gpus_frct(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(frct[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(frct[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update to(frct[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(frct[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(frct[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update to(frct[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-		}
-	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(frct[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(frct[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update from(frct[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-		}
-	}
-}
-void update_gpus_flux_g(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(flux_g[first_index:chunk_size_final][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(flux_g[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update to(flux_g[0:ISIZ3][0:ISIZ2][first_index:chunk_size_final][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(frct[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(frct[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(frct[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update from(frct[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
 	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+	void update_gpus_flux_g(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(flux_g[first_index:chunk_size_final][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(flux_g[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update to(flux_g[0:ISIZ3][0:ISIZ2][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(flux_g[first_index:chunk_size_final][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(flux_g[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update from(flux_g[0:ISIZ3][0:ISIZ2][first_index:chunk_size_final][0:5]) device(device_id)
-		}
-	}
-}
-void update_gpus_qs(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(qs[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(qs[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update to(qs[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-		}
-	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(qs[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(qs[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update from(qs[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(flux_g[0:ISIZ3][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(flux_g[first_index:chunk_size_final][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(flux_g[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update from(flux_g[0:ISIZ3][0:ISIZ2][first_index:chunk_size_final][0:5]) device(device_id)
+			}
 		}
 	}
-}
-void update_gpus_rho_i(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+	void update_gpus_qs(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(qs[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(qs[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update to(qs[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(rho_i[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(rho_i[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update to(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-		}
-	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(rho_i[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(rho_i[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-		}
-		else if (dim_splitted == 2) {
-			#pragma omp target update from(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-		}
-	}
-}
-void update_gpus_a(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(a[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(a[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(qs[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(qs[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(qs[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update from(qs[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
+			}
 		}
 	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+	void update_gpus_rho_i(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(rho_i[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(rho_i[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update to(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(a[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(a[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-		}
-	}
-}
-void update_gpus_b(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(b[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(b[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-		}
-	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(b[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(b[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(rho_i[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(rho_i[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
+			}
+			else if (dim_splitted == 2) {
+				#pragma omp target update from(rho_i[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
+			}
 		}
 	}
-}
-void update_gpus_c(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+	void update_gpus_a(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(a[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(a[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(c[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(c[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-		}
-	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(c[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(c[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-		}
-	}
-}
-void update_gpus_d(int dim_splitted, int is_to) {
-	if (is_to) {
-		if (dim_splitted == -1) {
-			#pragma omp target update to(d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update to(d[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update to(d[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(a[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(a[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(a[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
 		}
 	}
-	else {
-		if (dim_splitted == -1) {
-			#pragma omp target update from(d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+	void update_gpus_b(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(b[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(b[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
 		}
-		else if (dim_splitted == 0) {
-			#pragma omp target update from(d[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-		}
-		else if (dim_splitted == 1) {
-			#pragma omp target update from(d[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(b[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(b[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(b[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
 		}
 	}
-}
-
+	void update_gpus_c(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(c[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(c[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
+		}
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(c[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(c[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(c[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
+		}
+	}
+	void update_gpus_d(int dim_splitted, int is_to) {
+		if (is_to) {
+			if (dim_splitted == -1) {
+				#pragma omp target update to(d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update to(d[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update to(d[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
+		}
+		else {
+			if (dim_splitted == -1) {
+				#pragma omp target update from(d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 0) {
+				#pragma omp target update from(d[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
+			}
+			else if (dim_splitted == 1) {
+				#pragma omp target update from(d[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
+			}
+		}
+	}
+#endif
 
 /* functions mapping the global arrays to/from the gpus */
 // void map_gpus_u(int dim_splitted, int is_enter) {
@@ -1015,6 +1000,11 @@ int main(int argc, char* argv[]){
 			}
 		}
 	}
+
+	#if USE_GPU
+		map_gpus_all_delete_full();
+	#endif
+	
 	return 0;
 }
 
@@ -1270,19 +1260,42 @@ void buts(int nx,
 	double tmp, tmp1;
 	double tmat[5][5];
 
-	#pragma omp for nowait schedule(static)
-	for(j=jend-1; j>=jst; j--){
-		for(i=iend-1; i>=ist; i--){
-			for(m=0; m<5; m++){
-				tv[j][i][m]= 
-					omega*(udz[j][i][0][m]*v[k+1][j][i][0]
-							+udz[j][i][1][m]*v[k+1][j][i][1]
-							+udz[j][i][2][m]*v[k+1][j][i][2]
-							+udz[j][i][3][m]*v[k+1][j][i][3]
-							+udz[j][i][4][m]*v[k+1][j][i][4]);
+	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
+	#if USE_GPU_BUTS
+		#pragma omp barrier
+		if (omp_get_thread_num() < 1) {
+			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
+			update_gpus_rsd(1, 1);
+			update_gpus_c(0, 1);
+			#pragma omp target teams distribute parallel for collapse(3) device(device_id) num_teams(chunk_size_final) map(tofrom: tv[0:ISIZ2][0:ISIZ1/2*2+1][0:5])
+			for (j = next_index-1; j >= first_index; j--) {
+				for(i=iend-1; i>=ist; i--){
+					for(m=0; m<5; m++){
+						tv[j][i][m]= 
+							omega*(udz[j][i][0][m]*v[k+1][j][i][0]
+									+udz[j][i][1][m]*v[k+1][j][i][1]
+									+udz[j][i][2][m]*v[k+1][j][i][2]
+									+udz[j][i][3][m]*v[k+1][j][i][3]
+									+udz[j][i][4][m]*v[k+1][j][i][4]);
+					}
+				}
 			}
 		}
-	}
+	#else
+		#pragma omp for nowait schedule(static)
+		for(j=jend-1; j>=jst; j--){
+			for(i=iend-1; i>=ist; i--){
+				for(m=0; m<5; m++){
+					tv[j][i][m]= 
+						omega*(udz[j][i][0][m]*v[k+1][j][i][0]
+								+udz[j][i][1][m]*v[k+1][j][i][1]
+								+udz[j][i][2][m]*v[k+1][j][i][2]
+								+udz[j][i][3][m]*v[k+1][j][i][3]
+								+udz[j][i][4][m]*v[k+1][j][i][4]);
+				}
+			}
+		}
+	#endif
 
 	#pragma omp for nowait schedule(static)
 	for(j=jend-1; j>=jst; j--){
