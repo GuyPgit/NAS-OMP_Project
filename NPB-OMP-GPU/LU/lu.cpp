@@ -104,11 +104,13 @@ Authors of the OpenMP code:
 #define T_L2NORM 11
 #define T_LAST 11
 
-#define USE_GPU_ERHS 1
+#define USE_GPU_ERHS 0
 #define USE_GPU_RHS 0
 #define USE_GPU_BLTS 0
-#define USE_GPU_BUTS 0
-#define USE_GPU ((USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) || (USE_GPU_BUTS))
+#define USE_GPU_BUTS 1
+#define USE_GPU_JACLD 0
+#define USE_GPU_JACU 1
+#define USE_GPU ((USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) || (USE_GPU_BUTS) || (USE_GPU_JACLD) || (USE_GPU_JACU))
 
 /* global variables */
 #if defined(DO_NOT_ALLOCATE_ARRAYS_WITH_DYNAMIC_MEMORY_AND_AS_SINGLE_DIMENSION)
@@ -599,224 +601,6 @@ static boolean flag2[ISIZ1/2*2+1];
 	}
 #endif
 
-/* functions mapping the global arrays to/from the gpus */
-// void map_gpus_u(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: u[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: u[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target enter data map(to: u[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: u[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: u[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target exit data map(from: u[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_rsd(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: rsd[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: rsd[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target enter data map(to: rsd[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: rsd[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: rsd[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target exit data map(from: rsd[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_frct(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: frct[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: frct[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target enter data map(to: frct[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: frct[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: frct[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target exit data map(from: frct[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_flux_g(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: flux_g[first_index:chunk_size_final][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: flux_g[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target enter data map(to: flux_g[0:ISIZ3][0:ISIZ2][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: flux_g[first_index:chunk_size_final][0:ISIZ2][0:ISIZ1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: flux_g[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target exit data map(from: flux_g[0:ISIZ3][0:ISIZ2][first_index:chunk_size_final][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_qs(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: qs[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: qs[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target enter data map(to: qs[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: qs[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: qs[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target exit data map(from: qs[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_rho_i(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: rho_i[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: rho_i[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target enter data map(to: rho_i[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: rho_i[first_index:chunk_size_final][0:ISIZ2/2*2+1][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: rho_i[0:ISIZ3][first_index:chunk_size_final][0:ISIZ1/2*2+1]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 2) {
-// 			#pragma omp target exit data map(from: rho_i[0:ISIZ3][0:ISIZ2/2*2+1][first_index:chunk_size_final]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_a(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: a[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: a[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: a[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: a[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_b(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: b[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: b[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: b[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: b[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_c(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: c[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: c[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: c[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: c[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-// void map_gpus_d(int dim_splitted, int is_enter) {
-// 	if (is_enter) {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target enter data map(to: d[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target enter data map(to: d[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// 	else {
-// 		if (dim_splitted == 0) {
-// 			#pragma omp target exit data map(from: d[first_index:chunk_size_final][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
-// 		}
-// 		else if (dim_splitted == 1) {
-// 			#pragma omp target exit data map(from: d[0:ISIZ2][first_index:chunk_size_final][0:5][0:5]) device(device_id)
-// 		}
-// 	}
-// }
-
 
 /* lu */
 int main(int argc, char* argv[]){
@@ -1050,7 +834,8 @@ void blts(int nx,
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
 	#if USE_GPU_BLTS
 		#pragma omp barrier
-		if (omp_get_thread_num() < 1) {
+		#pragma omp master
+		{
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
 			update_gpus_rsd(1, 1);
 			update_gpus_a(0, 1);
@@ -1085,6 +870,7 @@ void blts(int nx,
 		}
 	#endif
 
+	// UNSUCCESSFUL FOR 1 GPU
 	#pragma omp for nowait schedule(static)
 	for(j=jst; j<jend; j++){
 		
@@ -1263,7 +1049,8 @@ void buts(int nx,
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
 	#if USE_GPU_BUTS
 		#pragma omp barrier
-		if (omp_get_thread_num() < 1) {
+		#pragma omp master
+		{
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
 			update_gpus_rsd(1, 1);
 			update_gpus_c(0, 1);
@@ -1297,22 +1084,22 @@ void buts(int nx,
 		}
 	#endif
 
+	// UNSUCCESSFUL FOR 1 GPU
 	#pragma omp for nowait schedule(static)
-	for(j=jend-1; j>=jst; j--){
+	for(j=jend-1; j>=jst; j--){		
 		
-		
-	    if (j != jend-1) {
-	    	while (flag2[j+1] == 0) {
-		    	#pragma omp flush
-		    		;
-	    	}
-	    }
-	    if (j != jst) {
-	    	while (flag2[j] == 1){
-		    	#pragma omp flush
-		    		;
+		if (j != jend-1) {
+			while (flag2[j+1] == 0) {
+				#pragma omp flush
+					;
 			}
-	    }
+		}
+		if (j != jst) {
+			while (flag2[j] == 1){
+				#pragma omp flush
+					;
+			}
+		}
 
 		for(i=iend-1; i>=ist; i--){
 			for(m=0; m<5; m++){
@@ -1329,10 +1116,10 @@ void buts(int nx,
 							+udx[j][i][4][m]*v[k][j][i+1][4]);
 			}
 			/*
-			 * ---------------------------------------------------------------------
-			 * diagonal block inversion
-			 * ---------------------------------------------------------------------
-			 */
+			* ---------------------------------------------------------------------
+			* diagonal block inversion
+			* ---------------------------------------------------------------------
+			*/
 			for(m=0; m<5; m++){
 				tmat[0][m]=d[j][i][0][m];
 				tmat[1][m]=d[j][i][1][m];
@@ -1405,10 +1192,10 @@ void buts(int nx,
 			tmat[4][4]=tmat[4][4]-tmp*tmat[4][3];
 			tv[j][i][4]=tv[j][i][4]-tv[j][i][3]*tmp;
 			/*
-			 * ---------------------------------------------------------------------
-			 * back substitution
-			 * ---------------------------------------------------------------------
-			 */
+			* ---------------------------------------------------------------------
+			* back substitution
+			* ---------------------------------------------------------------------
+			*/
 			tv[j][i][4]=tv[j][i][4]/tmat[4][4];
 			tv[j][i][3]=tv[j][i][3]-tmat[4][3]*tv[j][i][4];
 			tv[j][i][3]=tv[j][i][3]/tmat[3][3];
@@ -1433,7 +1220,6 @@ void buts(int nx,
 			v[k][j][i][3]=v[k][j][i][3]-tv[j][i][3];
 			v[k][j][i][4]=v[k][j][i][4]-tv[j][i][4];
 		}
-
 		
 		if (j != jend-1) flag2[j+1] = 0;
 		if (j != jst) flag2[j] = 1; 
@@ -2058,7 +1844,7 @@ void erhs(){
 	 */
 	// SUCCESSFUL FOR 1 GPU, UNSUCCESSFUL FOR 2-4 GPUS
 	#if USE_GPU_ERHS
-		#pragma omp single
+		#pragma omp master
 		{
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
 			update_gpus_frct(1, 1);
@@ -2368,273 +2154,557 @@ void jacld(int k){
 	c1345=C1*C3*C4*C5;
 	c34=C3*C4;
 
-	#pragma omp for nowait schedule(static)
-	for(j=jst; j<jend; j++){
-		for(i=ist; i<iend; i++){
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the block daigonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k][j][i];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			d[j][i][0][0]=1.0+dt*2.0*(tx1*dx1+ty1*dy1+tz1*dz1);
-			d[j][i][1][0]=0.0;
-			d[j][i][2][0]=0.0;
-			d[j][i][3][0]=0.0;
-			d[j][i][4][0]=0.0;
-			d[j][i][0][1]=-dt*2.0
-				*(tx1*r43+ty1+tz1)*c34*tmp2*u[k][j][i][1];
-			d[j][i][1][1]=1.0
-				+dt*2.0*c34*tmp1*(tx1*r43+ty1+tz1)
-				+dt*2.0*(tx1*dx2+ty1*dy2+tz1*dz2);
-			d[j][i][2][1]=0.0;
-			d[j][i][3][1]=0.0;
-			d[j][i][4][1]=0.0;
-			d[j][i][0][2]=-dt*2.0 
-				*(tx1+ty1*r43+tz1)*c34*tmp2*u[k][j][i][2];
-			d[j][i][1][2]=0.0;
-			d[j][i][2][2]=1.0
-				+dt*2.0*c34*tmp1*(tx1+ty1*r43+tz1)
-				+dt*2.0*(tx1*dx3+ty1*dy3+tz1*dz3);
-			d[j][i][3][2]=0.0;
-			d[j][i][4][2]=0.0;
-			d[j][i][0][3]=-dt*2.0
-				*(tx1+ty1+tz1*r43)*c34*tmp2*u[k][j][i][3];
-			d[j][i][1][3]=0.0;
-			d[j][i][2][3]=0.0;
-			d[j][i][3][3]=1.0
-				+dt*2.0*c34*tmp1*(tx1+ty1+tz1*r43)
-				+dt*2.0*(tx1*dx4+ty1*dy4+tz1*dz4);
-			d[j][i][4][3]=0.0;
-			d[j][i][0][4]=-dt*2.0
-				*(((tx1*(r43*c34-c1345)
+
+	// SUCCESSFUL FOR 1 GPU
+	#if USE_GPU_JACLD
+		#pragma omp master
+		{			
+			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
+			update_gpus_rho_i(1, 1);
+			update_gpus_u(1, 1);
+			update_gpus_qs(1, 1);
+			#pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+			for (j = first_index; j < next_index; j++) {
+				for(i=ist; i<iend; i++){
+					/*
+					* ---------------------------------------------------------------------
+					* form the block daigonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k][j][i];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					d[j][i][0][0]=1.0+dt*2.0*(tx1*dx1+ty1*dy1+tz1*dz1);
+					d[j][i][1][0]=0.0;
+					d[j][i][2][0]=0.0;
+					d[j][i][3][0]=0.0;
+					d[j][i][4][0]=0.0;
+					d[j][i][0][1]=-dt*2.0
+						*(tx1*r43+ty1+tz1)*c34*tmp2*u[k][j][i][1];
+					d[j][i][1][1]=1.0
+						+dt*2.0*c34*tmp1*(tx1*r43+ty1+tz1)
+						+dt*2.0*(tx1*dx2+ty1*dy2+tz1*dz2);
+					d[j][i][2][1]=0.0;
+					d[j][i][3][1]=0.0;
+					d[j][i][4][1]=0.0;
+					d[j][i][0][2]=-dt*2.0 
+						*(tx1+ty1*r43+tz1)*c34*tmp2*u[k][j][i][2];
+					d[j][i][1][2]=0.0;
+					d[j][i][2][2]=1.0
+						+dt*2.0*c34*tmp1*(tx1+ty1*r43+tz1)
+						+dt*2.0*(tx1*dx3+ty1*dy3+tz1*dz3);
+					d[j][i][3][2]=0.0;
+					d[j][i][4][2]=0.0;
+					d[j][i][0][3]=-dt*2.0
+						*(tx1+ty1+tz1*r43)*c34*tmp2*u[k][j][i][3];
+					d[j][i][1][3]=0.0;
+					d[j][i][2][3]=0.0;
+					d[j][i][3][3]=1.0
+						+dt*2.0*c34*tmp1*(tx1+ty1+tz1*r43)
+						+dt*2.0*(tx1*dx4+ty1*dy4+tz1*dz4);
+					d[j][i][4][3]=0.0;
+					d[j][i][0][4]=-dt*2.0
+						*(((tx1*(r43*c34-c1345)
+										+ty1*(c34-c1345)
+										+tz1*(c34-c1345))*(u[k][j][i][1]*u[k][j][i][1])
+									+(tx1*(c34-c1345)
+										+ty1*(r43*c34-c1345)
+										+tz1*(c34-c1345))*(u[k][j][i][2]*u[k][j][i][2])
+									+(tx1*(c34-c1345)
+										+ty1*(c34-c1345)
+										+tz1*(r43*c34-c1345))*(u[k][j][i][3]*u[k][j][i][3])
+						)*tmp3
+								+(tx1+ty1+tz1)*c1345*tmp2*u[k][j][i][4]);
+					d[j][i][1][4]=dt*2.0*tmp2*u[k][j][i][1]
+						*(tx1*(r43*c34-c1345)
 								+ty1*(c34-c1345)
-								+tz1*(c34-c1345))*(u[k][j][i][1]*u[k][j][i][1])
-							+(tx1*(c34-c1345)
+								+tz1*(c34-c1345));
+					d[j][i][2][4]=dt*2.0*tmp2*u[k][j][i][2]
+						*(tx1*(c34-c1345)
 								+ty1*(r43*c34-c1345)
-								+tz1*(c34-c1345))*(u[k][j][i][2]*u[k][j][i][2])
-							+(tx1*(c34-c1345)
+								+tz1*(c34-c1345));
+					d[j][i][3][4]=dt*2.0*tmp2*u[k][j][i][3]
+						*(tx1*(c34-c1345)
 								+ty1*(c34-c1345)
-								+tz1*(r43*c34-c1345))*(u[k][j][i][3]*u[k][j][i][3])
-				  )*tmp3
-						+(tx1+ty1+tz1)*c1345*tmp2*u[k][j][i][4]);
-			d[j][i][1][4]=dt*2.0*tmp2*u[k][j][i][1]
-				*(tx1*(r43*c34-c1345)
-						+ty1*(c34-c1345)
-						+tz1*(c34-c1345));
-			d[j][i][2][4]=dt*2.0*tmp2*u[k][j][i][2]
-				*(tx1*(c34-c1345)
-						+ty1*(r43*c34-c1345)
-						+tz1*(c34-c1345));
-			d[j][i][3][4]=dt*2.0*tmp2*u[k][j][i][3]
-				*(tx1*(c34-c1345)
-						+ty1*(c34-c1345)
-						+tz1*(r43*c34-c1345));
-			d[j][i][4][4]=1.0
-				+dt*2.0*(tx1+ty1+tz1)*c1345*tmp1
-				+dt*2.0*(tx1*dx5+ty1*dy5+tz1*dz5);
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the first block sub-diagonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k-1][j][i];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			a[j][i][0][0]=-dt*tz1*dz1;
-			a[j][i][1][0]=0.0;
-			a[j][i][2][0]=0.0;
-			a[j][i][3][0]=-dt*tz2;
-			a[j][i][4][0]=0.0;
-			a[j][i][0][1]=-dt*tz2
-				*(-(u[k-1][j][i][1]*u[k-1][j][i][3])*tmp2)
-				-dt*tz1*(-c34*tmp2*u[k-1][j][i][1]);
-			a[j][i][1][1]=-dt*tz2*(u[k-1][j][i][3]*tmp1)
-				-dt*tz1*c34*tmp1
-				-dt*tz1*dz2;
-			a[j][i][2][1]=0.0;
-			a[j][i][3][1]=-dt*tz2*(u[k-1][j][i][1]*tmp1);
-			a[j][i][4][1]=0.0;
-			a[j][i][0][2]=-dt*tz2
-				*(-(u[k-1][j][i][2]*u[k-1][j][i][3])*tmp2)
-				-dt*tz1*(-c34*tmp2*u[k-1][j][i][2]);
-			a[j][i][1][2]=0.0;
-			a[j][i][2][2]=-dt*tz2*(u[k-1][j][i][3]*tmp1)
-				-dt*tz1*(c34*tmp1)
-				-dt*tz1*dz3;
-			a[j][i][3][2]=-dt*tz2*(u[k-1][j][i][2]*tmp1);
-			a[j][i][4][2]=0.0;
-			a[j][i][0][3]=-dt*tz2
-				*(-(u[k-1][j][i][3]*tmp1)*(u[k-1][j][i][3]*tmp1)
-						+C2*qs[k-1][j][i]*tmp1)
-				-dt*tz1*(-r43*c34*tmp2*u[k-1][j][i][3]);
-			a[j][i][1][3]=-dt*tz2
-				*(-C2*(u[k-1][j][i][1]*tmp1));
-			a[j][i][2][3]=-dt*tz2
-				*(-C2*(u[k-1][j][i][2]*tmp1));
-			a[j][i][3][3]=-dt*tz2*(2.0-C2)
-				*(u[k-1][j][i][3]*tmp1)
-				-dt*tz1*(r43*c34*tmp1)
-				-dt*tz1*dz4;
-			a[j][i][4][3]=-dt*tz2*C2;
-			a[j][i][0][4]=-dt*tz2
-				*((C2*2.0*qs[k-1][j][i]-C1*u[k-1][j][i][4])
-						*u[k-1][j][i][3]*tmp2)
-				-dt*tz1
-				*(-(c34-c1345)*tmp3*(u[k-1][j][i][1]*u[k-1][j][i][1])
-						-(c34-c1345)*tmp3*(u[k-1][j][i][2]*u[k-1][j][i][2])
-						-(r43*c34-c1345)*tmp3*(u[k-1][j][i][3]*u[k-1][j][i][3])
-						-c1345*tmp2*u[k-1][j][i][4]);
-			a[j][i][1][4]=-dt*tz2
-				*(-C2*(u[k-1][j][i][1]*u[k-1][j][i][3])*tmp2)
-				-dt*tz1*(c34-c1345)*tmp2*u[k-1][j][i][1];
-			a[j][i][2][4]=-dt*tz2
-				*(-C2*(u[k-1][j][i][2]*u[k-1][j][i][3])*tmp2)
-				-dt*tz1*(c34-c1345)*tmp2*u[k-1][j][i][2];
-			a[j][i][3][4]=-dt*tz2
-				*(C1*(u[k-1][j][i][4]*tmp1)
-						-C2*(qs[k-1][j][i]*tmp1
-							+u[k-1][j][i][3]*u[k-1][j][i][3]*tmp2))
-				-dt*tz1*(r43*c34-c1345)*tmp2*u[k-1][j][i][3];
-			a[j][i][4][4]=-dt*tz2
-				*(C1*(u[k-1][j][i][3]*tmp1))
-				-dt*tz1*c1345*tmp1
-				-dt*tz1*dz5;
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the second block sub-diagonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k][j-1][i];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			b[j][i][0][0]=-dt*ty1*dy1;
-			b[j][i][1][0]=0.0;
-			b[j][i][2][0]=-dt*ty2;
-			b[j][i][3][0]=0.0;
-			b[j][i][4][0]=0.0;
-			b[j][i][0][1]=-dt*ty2
-				*(-(u[k][j-1][i][1]*u[k][j-1][i][2])*tmp2)
-				-dt*ty1*(-c34*tmp2*u[k][j-1][i][1]);
-			b[j][i][1][1]=-dt*ty2*(u[k][j-1][i][2]*tmp1)
-				-dt*ty1*(c34*tmp1)
-				-dt*ty1*dy2;
-			b[j][i][2][1]=-dt*ty2*(u[k][j-1][i][1]*tmp1);
-			b[j][i][3][1]=0.0;
-			b[j][i][4][1]=0.0;
-			b[j][i][0][2]=-dt*ty2
-				*(-(u[k][j-1][i][2]*tmp1)*(u[k][j-1][i][2]*tmp1)
-						+C2*(qs[k][j-1][i]*tmp1))
-				-dt*ty1*(-r43*c34*tmp2*u[k][j-1][i][2]);
-			b[j][i][1][2]=-dt*ty2
-				*(-C2*(u[k][j-1][i][1]*tmp1));
-			b[j][i][2][2]=-dt*ty2*((2.0-C2)*(u[k][j-1][i][2]*tmp1))
-				-dt*ty1*(r43*c34*tmp1)
-				-dt*ty1*dy3;
-			b[j][i][3][2]=-dt*ty2*(-C2*(u[k][j-1][i][3]*tmp1));
-			b[j][i][4][2]=-dt*ty2*C2;
-			b[j][i][0][3]=-dt*ty2
-				*(-(u[k][j-1][i][2]*u[k][j-1][i][3])*tmp2)
-				-dt*ty1*(-c34*tmp2*u[k][j-1][i][3]);
-			b[j][i][1][3]=0.0;
-			b[j][i][2][3]=-dt*ty2*(u[k][j-1][i][3]*tmp1);
-			b[j][i][3][3]=-dt*ty2*(u[k][j-1][i][2]*tmp1)
-				-dt*ty1*(c34*tmp1)
-				-dt*ty1*dy4;
-			b[j][i][4][3]=0.0;
-			b[j][i][0][4]=-dt*ty2
-				*((C2*2.0*qs[k][j-1][i]-C1*u[k][j-1][i][4])
-						*(u[k][j-1][i][2]*tmp2))
-				-dt*ty1
-				*(-(c34-c1345)*tmp3*(u[k][j-1][i][1]*u[k][j-1][i][1])
-						-(r43*c34-c1345)*tmp3*(u[k][j-1][i][2]*u[k][j-1][i][2])
-						-(c34-c1345)*tmp3*(u[k][j-1][i][3]*u[k][j-1][i][3])
-						-c1345*tmp2*u[k][j-1][i][4]);
-			b[j][i][1][4]=-dt*ty2
-				*(-C2*(u[k][j-1][i][1]*u[k][j-1][i][2])*tmp2)
-				-dt*ty1*(c34-c1345)*tmp2*u[k][j-1][i][1];
-			b[j][i][2][4]=-dt*ty2
-				*(C1*(u[k][j-1][i][4]*tmp1)
-						-C2*(qs[k][j-1][i]*tmp1
-							+u[k][j-1][i][2]*u[k][j-1][i][2]*tmp2))
-				-dt*ty1*(r43*c34-c1345)*tmp2*u[k][j-1][i][2];
-			b[j][i][3][4]=-dt*ty2
-				*(-C2*(u[k][j-1][i][2]*u[k][j-1][i][3])*tmp2)
-				-dt*ty1*(c34-c1345)*tmp2*u[k][j-1][i][3];
-			b[j][i][4][4]=-dt*ty2
-				*(C1*(u[k][j-1][i][2]*tmp1))
-				-dt*ty1*c1345*tmp1
-				-dt*ty1*dy5;
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the third block sub-diagonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k][j][i-1];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			c[j][i][0][0]=-dt*tx1*dx1;
-			c[j][i][1][0]=-dt*tx2;
-			c[j][i][2][0]=0.0;
-			c[j][i][3][0]=0.0;
-			c[j][i][4][0]=0.0;
-			c[j][i][0][1]=-dt*tx2
-				*(-(u[k][j][i-1][1]*tmp1)*(u[k][j][i-1][1]*tmp1)
-						+C2*qs[k][j][i-1]*tmp1)
-				-dt*tx1*(-r43*c34*tmp2*u[k][j][i-1][1]);
-			c[j][i][1][1]=-dt*tx2
-				*((2.0-C2)*(u[k][j][i-1][1]*tmp1))
-				-dt*tx1*(r43*c34*tmp1)
-				-dt*tx1*dx2;
-			c[j][i][2][1]=-dt*tx2
-				*(-C2*(u[k][j][i-1][2]*tmp1));
-			c[j][i][3][1]=-dt*tx2
-				*(-C2*(u[k][j][i-1][3]*tmp1));
-			c[j][i][4][1]=-dt*tx2*C2;
-			c[j][i][0][2]=-dt*tx2
-				*(-(u[k][j][i-1][1]*u[k][j][i-1][2])*tmp2)
-				-dt*tx1*(-c34*tmp2*u[k][j][i-1][2]);
-			c[j][i][1][2]=-dt*tx2*(u[k][j][i-1][2]*tmp1);
-			c[j][i][2][2]=-dt*tx2*(u[k][j][i-1][1]*tmp1)
-				-dt*tx1*(c34*tmp1)
-				-dt*tx1*dx3;
-			c[j][i][3][2]=0.0;
-			c[j][i][4][2]=0.0;
-			c[j][i][0][3]=-dt*tx2
-				*(-(u[k][j][i-1][1]*u[k][j][i-1][3])*tmp2)
-				-dt*tx1*(-c34*tmp2*u[k][j][i-1][3]);
-			c[j][i][1][3]=-dt*tx2*(u[k][j][i-1][3]*tmp1);
-			c[j][i][2][3]=0.0;
-			c[j][i][3][3]=-dt*tx2*(u[k][j][i-1][1]*tmp1)
-				-dt*tx1*(c34*tmp1)-dt*tx1*dx4;
-			c[j][i][4][3]=0.0;
-			c[j][i][0][4]=-dt*tx2
-				*((C2*2.0*qs[k][j][i-1]-C1*u[k][j][i-1][4])
-						*u[k][j][i-1][1]*tmp2)
-				-dt*tx1
-				*(-(r43*c34-c1345)*tmp3*(u[k][j][i-1][1]*u[k][j][i-1][1])
-						-(c34-c1345)*tmp3*(u[k][j][i-1][2]*u[k][j][i-1][2])
-						-(c34-c1345)*tmp3*(u[k][j][i-1][3]*u[k][j][i-1][3])
-						-c1345*tmp2*u[k][j][i-1][4]);
-			c[j][i][1][4]=-dt*tx2
-				*(C1*(u[k][j][i-1][4]*tmp1)
-						-C2*(u[k][j][i-1][1]*u[k][j][i-1][1]*tmp2
-							+qs[k][j][i-1]*tmp1))
-				-dt*tx1*(r43*c34-c1345)*tmp2*u[k][j][i-1][1];
-			c[j][i][2][4]=-dt*tx2
-				*(-C2*(u[k][j][i-1][2]*u[k][j][i-1][1])*tmp2)
-				-dt*tx1*(c34-c1345)*tmp2*u[k][j][i-1][2];
-			c[j][i][3][4]=-dt*tx2
-				*(-C2*(u[k][j][i-1][3]*u[k][j][i-1][1])*tmp2)
-				-dt*tx1*(c34-c1345)*tmp2*u[k][j][i-1][3];
-			c[j][i][4][4]=-dt*tx2
-				*(C1*(u[k][j][i-1][1]*tmp1))
-				-dt*tx1*c1345*tmp1
-				-dt*tx1*dx5;
+								+tz1*(r43*c34-c1345));
+					d[j][i][4][4]=1.0
+						+dt*2.0*(tx1+ty1+tz1)*c1345*tmp1
+						+dt*2.0*(tx1*dx5+ty1*dy5+tz1*dz5);
+					/*
+					* ---------------------------------------------------------------------
+					* form the first block sub-diagonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k-1][j][i];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					a[j][i][0][0]=-dt*tz1*dz1;
+					a[j][i][1][0]=0.0;
+					a[j][i][2][0]=0.0;
+					a[j][i][3][0]=-dt*tz2;
+					a[j][i][4][0]=0.0;
+					a[j][i][0][1]=-dt*tz2
+						*(-(u[k-1][j][i][1]*u[k-1][j][i][3])*tmp2)
+						-dt*tz1*(-c34*tmp2*u[k-1][j][i][1]);
+					a[j][i][1][1]=-dt*tz2*(u[k-1][j][i][3]*tmp1)
+						-dt*tz1*c34*tmp1
+						-dt*tz1*dz2;
+					a[j][i][2][1]=0.0;
+					a[j][i][3][1]=-dt*tz2*(u[k-1][j][i][1]*tmp1);
+					a[j][i][4][1]=0.0;
+					a[j][i][0][2]=-dt*tz2
+						*(-(u[k-1][j][i][2]*u[k-1][j][i][3])*tmp2)
+						-dt*tz1*(-c34*tmp2*u[k-1][j][i][2]);
+					a[j][i][1][2]=0.0;
+					a[j][i][2][2]=-dt*tz2*(u[k-1][j][i][3]*tmp1)
+						-dt*tz1*(c34*tmp1)
+						-dt*tz1*dz3;
+					a[j][i][3][2]=-dt*tz2*(u[k-1][j][i][2]*tmp1);
+					a[j][i][4][2]=0.0;
+					a[j][i][0][3]=-dt*tz2
+						*(-(u[k-1][j][i][3]*tmp1)*(u[k-1][j][i][3]*tmp1)
+								+C2*qs[k-1][j][i]*tmp1)
+						-dt*tz1*(-r43*c34*tmp2*u[k-1][j][i][3]);
+					a[j][i][1][3]=-dt*tz2
+						*(-C2*(u[k-1][j][i][1]*tmp1));
+					a[j][i][2][3]=-dt*tz2
+						*(-C2*(u[k-1][j][i][2]*tmp1));
+					a[j][i][3][3]=-dt*tz2*(2.0-C2)
+						*(u[k-1][j][i][3]*tmp1)
+						-dt*tz1*(r43*c34*tmp1)
+						-dt*tz1*dz4;
+					a[j][i][4][3]=-dt*tz2*C2;
+					a[j][i][0][4]=-dt*tz2
+						*((C2*2.0*qs[k-1][j][i]-C1*u[k-1][j][i][4])
+								*u[k-1][j][i][3]*tmp2)
+						-dt*tz1
+						*(-(c34-c1345)*tmp3*(u[k-1][j][i][1]*u[k-1][j][i][1])
+								-(c34-c1345)*tmp3*(u[k-1][j][i][2]*u[k-1][j][i][2])
+								-(r43*c34-c1345)*tmp3*(u[k-1][j][i][3]*u[k-1][j][i][3])
+								-c1345*tmp2*u[k-1][j][i][4]);
+					a[j][i][1][4]=-dt*tz2
+						*(-C2*(u[k-1][j][i][1]*u[k-1][j][i][3])*tmp2)
+						-dt*tz1*(c34-c1345)*tmp2*u[k-1][j][i][1];
+					a[j][i][2][4]=-dt*tz2
+						*(-C2*(u[k-1][j][i][2]*u[k-1][j][i][3])*tmp2)
+						-dt*tz1*(c34-c1345)*tmp2*u[k-1][j][i][2];
+					a[j][i][3][4]=-dt*tz2
+						*(C1*(u[k-1][j][i][4]*tmp1)
+								-C2*(qs[k-1][j][i]*tmp1
+									+u[k-1][j][i][3]*u[k-1][j][i][3]*tmp2))
+						-dt*tz1*(r43*c34-c1345)*tmp2*u[k-1][j][i][3];
+					a[j][i][4][4]=-dt*tz2
+						*(C1*(u[k-1][j][i][3]*tmp1))
+						-dt*tz1*c1345*tmp1
+						-dt*tz1*dz5;
+					/*
+					* ---------------------------------------------------------------------
+					* form the second block sub-diagonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k][j-1][i];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					b[j][i][0][0]=-dt*ty1*dy1;
+					b[j][i][1][0]=0.0;
+					b[j][i][2][0]=-dt*ty2;
+					b[j][i][3][0]=0.0;
+					b[j][i][4][0]=0.0;
+					b[j][i][0][1]=-dt*ty2
+						*(-(u[k][j-1][i][1]*u[k][j-1][i][2])*tmp2)
+						-dt*ty1*(-c34*tmp2*u[k][j-1][i][1]);
+					b[j][i][1][1]=-dt*ty2*(u[k][j-1][i][2]*tmp1)
+						-dt*ty1*(c34*tmp1)
+						-dt*ty1*dy2;
+					b[j][i][2][1]=-dt*ty2*(u[k][j-1][i][1]*tmp1);
+					b[j][i][3][1]=0.0;
+					b[j][i][4][1]=0.0;
+					b[j][i][0][2]=-dt*ty2
+						*(-(u[k][j-1][i][2]*tmp1)*(u[k][j-1][i][2]*tmp1)
+								+C2*(qs[k][j-1][i]*tmp1))
+						-dt*ty1*(-r43*c34*tmp2*u[k][j-1][i][2]);
+					b[j][i][1][2]=-dt*ty2
+						*(-C2*(u[k][j-1][i][1]*tmp1));
+					b[j][i][2][2]=-dt*ty2*((2.0-C2)*(u[k][j-1][i][2]*tmp1))
+						-dt*ty1*(r43*c34*tmp1)
+						-dt*ty1*dy3;
+					b[j][i][3][2]=-dt*ty2*(-C2*(u[k][j-1][i][3]*tmp1));
+					b[j][i][4][2]=-dt*ty2*C2;
+					b[j][i][0][3]=-dt*ty2
+						*(-(u[k][j-1][i][2]*u[k][j-1][i][3])*tmp2)
+						-dt*ty1*(-c34*tmp2*u[k][j-1][i][3]);
+					b[j][i][1][3]=0.0;
+					b[j][i][2][3]=-dt*ty2*(u[k][j-1][i][3]*tmp1);
+					b[j][i][3][3]=-dt*ty2*(u[k][j-1][i][2]*tmp1)
+						-dt*ty1*(c34*tmp1)
+						-dt*ty1*dy4;
+					b[j][i][4][3]=0.0;
+					b[j][i][0][4]=-dt*ty2
+						*((C2*2.0*qs[k][j-1][i]-C1*u[k][j-1][i][4])
+								*(u[k][j-1][i][2]*tmp2))
+						-dt*ty1
+						*(-(c34-c1345)*tmp3*(u[k][j-1][i][1]*u[k][j-1][i][1])
+								-(r43*c34-c1345)*tmp3*(u[k][j-1][i][2]*u[k][j-1][i][2])
+								-(c34-c1345)*tmp3*(u[k][j-1][i][3]*u[k][j-1][i][3])
+								-c1345*tmp2*u[k][j-1][i][4]);
+					b[j][i][1][4]=-dt*ty2
+						*(-C2*(u[k][j-1][i][1]*u[k][j-1][i][2])*tmp2)
+						-dt*ty1*(c34-c1345)*tmp2*u[k][j-1][i][1];
+					b[j][i][2][4]=-dt*ty2
+						*(C1*(u[k][j-1][i][4]*tmp1)
+								-C2*(qs[k][j-1][i]*tmp1
+									+u[k][j-1][i][2]*u[k][j-1][i][2]*tmp2))
+						-dt*ty1*(r43*c34-c1345)*tmp2*u[k][j-1][i][2];
+					b[j][i][3][4]=-dt*ty2
+						*(-C2*(u[k][j-1][i][2]*u[k][j-1][i][3])*tmp2)
+						-dt*ty1*(c34-c1345)*tmp2*u[k][j-1][i][3];
+					b[j][i][4][4]=-dt*ty2
+						*(C1*(u[k][j-1][i][2]*tmp1))
+						-dt*ty1*c1345*tmp1
+						-dt*ty1*dy5;
+					/*
+					* ---------------------------------------------------------------------
+					* form the third block sub-diagonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k][j][i-1];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					c[j][i][0][0]=-dt*tx1*dx1;
+					c[j][i][1][0]=-dt*tx2;
+					c[j][i][2][0]=0.0;
+					c[j][i][3][0]=0.0;
+					c[j][i][4][0]=0.0;
+					c[j][i][0][1]=-dt*tx2
+						*(-(u[k][j][i-1][1]*tmp1)*(u[k][j][i-1][1]*tmp1)
+								+C2*qs[k][j][i-1]*tmp1)
+						-dt*tx1*(-r43*c34*tmp2*u[k][j][i-1][1]);
+					c[j][i][1][1]=-dt*tx2
+						*((2.0-C2)*(u[k][j][i-1][1]*tmp1))
+						-dt*tx1*(r43*c34*tmp1)
+						-dt*tx1*dx2;
+					c[j][i][2][1]=-dt*tx2
+						*(-C2*(u[k][j][i-1][2]*tmp1));
+					c[j][i][3][1]=-dt*tx2
+						*(-C2*(u[k][j][i-1][3]*tmp1));
+					c[j][i][4][1]=-dt*tx2*C2;
+					c[j][i][0][2]=-dt*tx2
+						*(-(u[k][j][i-1][1]*u[k][j][i-1][2])*tmp2)
+						-dt*tx1*(-c34*tmp2*u[k][j][i-1][2]);
+					c[j][i][1][2]=-dt*tx2*(u[k][j][i-1][2]*tmp1);
+					c[j][i][2][2]=-dt*tx2*(u[k][j][i-1][1]*tmp1)
+						-dt*tx1*(c34*tmp1)
+						-dt*tx1*dx3;
+					c[j][i][3][2]=0.0;
+					c[j][i][4][2]=0.0;
+					c[j][i][0][3]=-dt*tx2
+						*(-(u[k][j][i-1][1]*u[k][j][i-1][3])*tmp2)
+						-dt*tx1*(-c34*tmp2*u[k][j][i-1][3]);
+					c[j][i][1][3]=-dt*tx2*(u[k][j][i-1][3]*tmp1);
+					c[j][i][2][3]=0.0;
+					c[j][i][3][3]=-dt*tx2*(u[k][j][i-1][1]*tmp1)
+						-dt*tx1*(c34*tmp1)-dt*tx1*dx4;
+					c[j][i][4][3]=0.0;
+					c[j][i][0][4]=-dt*tx2
+						*((C2*2.0*qs[k][j][i-1]-C1*u[k][j][i-1][4])
+								*u[k][j][i-1][1]*tmp2)
+						-dt*tx1
+						*(-(r43*c34-c1345)*tmp3*(u[k][j][i-1][1]*u[k][j][i-1][1])
+								-(c34-c1345)*tmp3*(u[k][j][i-1][2]*u[k][j][i-1][2])
+								-(c34-c1345)*tmp3*(u[k][j][i-1][3]*u[k][j][i-1][3])
+								-c1345*tmp2*u[k][j][i-1][4]);
+					c[j][i][1][4]=-dt*tx2
+						*(C1*(u[k][j][i-1][4]*tmp1)
+								-C2*(u[k][j][i-1][1]*u[k][j][i-1][1]*tmp2
+									+qs[k][j][i-1]*tmp1))
+						-dt*tx1*(r43*c34-c1345)*tmp2*u[k][j][i-1][1];
+					c[j][i][2][4]=-dt*tx2
+						*(-C2*(u[k][j][i-1][2]*u[k][j][i-1][1])*tmp2)
+						-dt*tx1*(c34-c1345)*tmp2*u[k][j][i-1][2];
+					c[j][i][3][4]=-dt*tx2
+						*(-C2*(u[k][j][i-1][3]*u[k][j][i-1][1])*tmp2)
+						-dt*tx1*(c34-c1345)*tmp2*u[k][j][i-1][3];
+					c[j][i][4][4]=-dt*tx2
+						*(C1*(u[k][j][i-1][1]*tmp1))
+						-dt*tx1*c1345*tmp1
+						-dt*tx1*dx5;
+				}
+			}
+			update_gpus_d(0, 0);
+			update_gpus_a(0, 0);
+			update_gpus_b(0, 0);
+			update_gpus_c(0, 0);
 		}
-	}
+		#pragma omp barrier
+	#else
+		#pragma omp for nowait schedule(static)
+		for(j=jst; j<jend; j++){
+			for(i=ist; i<iend; i++){
+				/*
+				* ---------------------------------------------------------------------
+				* form the block daigonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k][j][i];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				d[j][i][0][0]=1.0+dt*2.0*(tx1*dx1+ty1*dy1+tz1*dz1);
+				d[j][i][1][0]=0.0;
+				d[j][i][2][0]=0.0;
+				d[j][i][3][0]=0.0;
+				d[j][i][4][0]=0.0;
+				d[j][i][0][1]=-dt*2.0
+					*(tx1*r43+ty1+tz1)*c34*tmp2*u[k][j][i][1];
+				d[j][i][1][1]=1.0
+					+dt*2.0*c34*tmp1*(tx1*r43+ty1+tz1)
+					+dt*2.0*(tx1*dx2+ty1*dy2+tz1*dz2);
+				d[j][i][2][1]=0.0;
+				d[j][i][3][1]=0.0;
+				d[j][i][4][1]=0.0;
+				d[j][i][0][2]=-dt*2.0 
+					*(tx1+ty1*r43+tz1)*c34*tmp2*u[k][j][i][2];
+				d[j][i][1][2]=0.0;
+				d[j][i][2][2]=1.0
+					+dt*2.0*c34*tmp1*(tx1+ty1*r43+tz1)
+					+dt*2.0*(tx1*dx3+ty1*dy3+tz1*dz3);
+				d[j][i][3][2]=0.0;
+				d[j][i][4][2]=0.0;
+				d[j][i][0][3]=-dt*2.0
+					*(tx1+ty1+tz1*r43)*c34*tmp2*u[k][j][i][3];
+				d[j][i][1][3]=0.0;
+				d[j][i][2][3]=0.0;
+				d[j][i][3][3]=1.0
+					+dt*2.0*c34*tmp1*(tx1+ty1+tz1*r43)
+					+dt*2.0*(tx1*dx4+ty1*dy4+tz1*dz4);
+				d[j][i][4][3]=0.0;
+				d[j][i][0][4]=-dt*2.0
+					*(((tx1*(r43*c34-c1345)
+									+ty1*(c34-c1345)
+									+tz1*(c34-c1345))*(u[k][j][i][1]*u[k][j][i][1])
+								+(tx1*(c34-c1345)
+									+ty1*(r43*c34-c1345)
+									+tz1*(c34-c1345))*(u[k][j][i][2]*u[k][j][i][2])
+								+(tx1*(c34-c1345)
+									+ty1*(c34-c1345)
+									+tz1*(r43*c34-c1345))*(u[k][j][i][3]*u[k][j][i][3])
+					)*tmp3
+							+(tx1+ty1+tz1)*c1345*tmp2*u[k][j][i][4]);
+				d[j][i][1][4]=dt*2.0*tmp2*u[k][j][i][1]
+					*(tx1*(r43*c34-c1345)
+							+ty1*(c34-c1345)
+							+tz1*(c34-c1345));
+				d[j][i][2][4]=dt*2.0*tmp2*u[k][j][i][2]
+					*(tx1*(c34-c1345)
+							+ty1*(r43*c34-c1345)
+							+tz1*(c34-c1345));
+				d[j][i][3][4]=dt*2.0*tmp2*u[k][j][i][3]
+					*(tx1*(c34-c1345)
+							+ty1*(c34-c1345)
+							+tz1*(r43*c34-c1345));
+				d[j][i][4][4]=1.0
+					+dt*2.0*(tx1+ty1+tz1)*c1345*tmp1
+					+dt*2.0*(tx1*dx5+ty1*dy5+tz1*dz5);
+				/*
+				* ---------------------------------------------------------------------
+				* form the first block sub-diagonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k-1][j][i];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				a[j][i][0][0]=-dt*tz1*dz1;
+				a[j][i][1][0]=0.0;
+				a[j][i][2][0]=0.0;
+				a[j][i][3][0]=-dt*tz2;
+				a[j][i][4][0]=0.0;
+				a[j][i][0][1]=-dt*tz2
+					*(-(u[k-1][j][i][1]*u[k-1][j][i][3])*tmp2)
+					-dt*tz1*(-c34*tmp2*u[k-1][j][i][1]);
+				a[j][i][1][1]=-dt*tz2*(u[k-1][j][i][3]*tmp1)
+					-dt*tz1*c34*tmp1
+					-dt*tz1*dz2;
+				a[j][i][2][1]=0.0;
+				a[j][i][3][1]=-dt*tz2*(u[k-1][j][i][1]*tmp1);
+				a[j][i][4][1]=0.0;
+				a[j][i][0][2]=-dt*tz2
+					*(-(u[k-1][j][i][2]*u[k-1][j][i][3])*tmp2)
+					-dt*tz1*(-c34*tmp2*u[k-1][j][i][2]);
+				a[j][i][1][2]=0.0;
+				a[j][i][2][2]=-dt*tz2*(u[k-1][j][i][3]*tmp1)
+					-dt*tz1*(c34*tmp1)
+					-dt*tz1*dz3;
+				a[j][i][3][2]=-dt*tz2*(u[k-1][j][i][2]*tmp1);
+				a[j][i][4][2]=0.0;
+				a[j][i][0][3]=-dt*tz2
+					*(-(u[k-1][j][i][3]*tmp1)*(u[k-1][j][i][3]*tmp1)
+							+C2*qs[k-1][j][i]*tmp1)
+					-dt*tz1*(-r43*c34*tmp2*u[k-1][j][i][3]);
+				a[j][i][1][3]=-dt*tz2
+					*(-C2*(u[k-1][j][i][1]*tmp1));
+				a[j][i][2][3]=-dt*tz2
+					*(-C2*(u[k-1][j][i][2]*tmp1));
+				a[j][i][3][3]=-dt*tz2*(2.0-C2)
+					*(u[k-1][j][i][3]*tmp1)
+					-dt*tz1*(r43*c34*tmp1)
+					-dt*tz1*dz4;
+				a[j][i][4][3]=-dt*tz2*C2;
+				a[j][i][0][4]=-dt*tz2
+					*((C2*2.0*qs[k-1][j][i]-C1*u[k-1][j][i][4])
+							*u[k-1][j][i][3]*tmp2)
+					-dt*tz1
+					*(-(c34-c1345)*tmp3*(u[k-1][j][i][1]*u[k-1][j][i][1])
+							-(c34-c1345)*tmp3*(u[k-1][j][i][2]*u[k-1][j][i][2])
+							-(r43*c34-c1345)*tmp3*(u[k-1][j][i][3]*u[k-1][j][i][3])
+							-c1345*tmp2*u[k-1][j][i][4]);
+				a[j][i][1][4]=-dt*tz2
+					*(-C2*(u[k-1][j][i][1]*u[k-1][j][i][3])*tmp2)
+					-dt*tz1*(c34-c1345)*tmp2*u[k-1][j][i][1];
+				a[j][i][2][4]=-dt*tz2
+					*(-C2*(u[k-1][j][i][2]*u[k-1][j][i][3])*tmp2)
+					-dt*tz1*(c34-c1345)*tmp2*u[k-1][j][i][2];
+				a[j][i][3][4]=-dt*tz2
+					*(C1*(u[k-1][j][i][4]*tmp1)
+							-C2*(qs[k-1][j][i]*tmp1
+								+u[k-1][j][i][3]*u[k-1][j][i][3]*tmp2))
+					-dt*tz1*(r43*c34-c1345)*tmp2*u[k-1][j][i][3];
+				a[j][i][4][4]=-dt*tz2
+					*(C1*(u[k-1][j][i][3]*tmp1))
+					-dt*tz1*c1345*tmp1
+					-dt*tz1*dz5;
+				/*
+				* ---------------------------------------------------------------------
+				* form the second block sub-diagonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k][j-1][i];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				b[j][i][0][0]=-dt*ty1*dy1;
+				b[j][i][1][0]=0.0;
+				b[j][i][2][0]=-dt*ty2;
+				b[j][i][3][0]=0.0;
+				b[j][i][4][0]=0.0;
+				b[j][i][0][1]=-dt*ty2
+					*(-(u[k][j-1][i][1]*u[k][j-1][i][2])*tmp2)
+					-dt*ty1*(-c34*tmp2*u[k][j-1][i][1]);
+				b[j][i][1][1]=-dt*ty2*(u[k][j-1][i][2]*tmp1)
+					-dt*ty1*(c34*tmp1)
+					-dt*ty1*dy2;
+				b[j][i][2][1]=-dt*ty2*(u[k][j-1][i][1]*tmp1);
+				b[j][i][3][1]=0.0;
+				b[j][i][4][1]=0.0;
+				b[j][i][0][2]=-dt*ty2
+					*(-(u[k][j-1][i][2]*tmp1)*(u[k][j-1][i][2]*tmp1)
+							+C2*(qs[k][j-1][i]*tmp1))
+					-dt*ty1*(-r43*c34*tmp2*u[k][j-1][i][2]);
+				b[j][i][1][2]=-dt*ty2
+					*(-C2*(u[k][j-1][i][1]*tmp1));
+				b[j][i][2][2]=-dt*ty2*((2.0-C2)*(u[k][j-1][i][2]*tmp1))
+					-dt*ty1*(r43*c34*tmp1)
+					-dt*ty1*dy3;
+				b[j][i][3][2]=-dt*ty2*(-C2*(u[k][j-1][i][3]*tmp1));
+				b[j][i][4][2]=-dt*ty2*C2;
+				b[j][i][0][3]=-dt*ty2
+					*(-(u[k][j-1][i][2]*u[k][j-1][i][3])*tmp2)
+					-dt*ty1*(-c34*tmp2*u[k][j-1][i][3]);
+				b[j][i][1][3]=0.0;
+				b[j][i][2][3]=-dt*ty2*(u[k][j-1][i][3]*tmp1);
+				b[j][i][3][3]=-dt*ty2*(u[k][j-1][i][2]*tmp1)
+					-dt*ty1*(c34*tmp1)
+					-dt*ty1*dy4;
+				b[j][i][4][3]=0.0;
+				b[j][i][0][4]=-dt*ty2
+					*((C2*2.0*qs[k][j-1][i]-C1*u[k][j-1][i][4])
+							*(u[k][j-1][i][2]*tmp2))
+					-dt*ty1
+					*(-(c34-c1345)*tmp3*(u[k][j-1][i][1]*u[k][j-1][i][1])
+							-(r43*c34-c1345)*tmp3*(u[k][j-1][i][2]*u[k][j-1][i][2])
+							-(c34-c1345)*tmp3*(u[k][j-1][i][3]*u[k][j-1][i][3])
+							-c1345*tmp2*u[k][j-1][i][4]);
+				b[j][i][1][4]=-dt*ty2
+					*(-C2*(u[k][j-1][i][1]*u[k][j-1][i][2])*tmp2)
+					-dt*ty1*(c34-c1345)*tmp2*u[k][j-1][i][1];
+				b[j][i][2][4]=-dt*ty2
+					*(C1*(u[k][j-1][i][4]*tmp1)
+							-C2*(qs[k][j-1][i]*tmp1
+								+u[k][j-1][i][2]*u[k][j-1][i][2]*tmp2))
+					-dt*ty1*(r43*c34-c1345)*tmp2*u[k][j-1][i][2];
+				b[j][i][3][4]=-dt*ty2
+					*(-C2*(u[k][j-1][i][2]*u[k][j-1][i][3])*tmp2)
+					-dt*ty1*(c34-c1345)*tmp2*u[k][j-1][i][3];
+				b[j][i][4][4]=-dt*ty2
+					*(C1*(u[k][j-1][i][2]*tmp1))
+					-dt*ty1*c1345*tmp1
+					-dt*ty1*dy5;
+				/*
+				* ---------------------------------------------------------------------
+				* form the third block sub-diagonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k][j][i-1];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				c[j][i][0][0]=-dt*tx1*dx1;
+				c[j][i][1][0]=-dt*tx2;
+				c[j][i][2][0]=0.0;
+				c[j][i][3][0]=0.0;
+				c[j][i][4][0]=0.0;
+				c[j][i][0][1]=-dt*tx2
+					*(-(u[k][j][i-1][1]*tmp1)*(u[k][j][i-1][1]*tmp1)
+							+C2*qs[k][j][i-1]*tmp1)
+					-dt*tx1*(-r43*c34*tmp2*u[k][j][i-1][1]);
+				c[j][i][1][1]=-dt*tx2
+					*((2.0-C2)*(u[k][j][i-1][1]*tmp1))
+					-dt*tx1*(r43*c34*tmp1)
+					-dt*tx1*dx2;
+				c[j][i][2][1]=-dt*tx2
+					*(-C2*(u[k][j][i-1][2]*tmp1));
+				c[j][i][3][1]=-dt*tx2
+					*(-C2*(u[k][j][i-1][3]*tmp1));
+				c[j][i][4][1]=-dt*tx2*C2;
+				c[j][i][0][2]=-dt*tx2
+					*(-(u[k][j][i-1][1]*u[k][j][i-1][2])*tmp2)
+					-dt*tx1*(-c34*tmp2*u[k][j][i-1][2]);
+				c[j][i][1][2]=-dt*tx2*(u[k][j][i-1][2]*tmp1);
+				c[j][i][2][2]=-dt*tx2*(u[k][j][i-1][1]*tmp1)
+					-dt*tx1*(c34*tmp1)
+					-dt*tx1*dx3;
+				c[j][i][3][2]=0.0;
+				c[j][i][4][2]=0.0;
+				c[j][i][0][3]=-dt*tx2
+					*(-(u[k][j][i-1][1]*u[k][j][i-1][3])*tmp2)
+					-dt*tx1*(-c34*tmp2*u[k][j][i-1][3]);
+				c[j][i][1][3]=-dt*tx2*(u[k][j][i-1][3]*tmp1);
+				c[j][i][2][3]=0.0;
+				c[j][i][3][3]=-dt*tx2*(u[k][j][i-1][1]*tmp1)
+					-dt*tx1*(c34*tmp1)-dt*tx1*dx4;
+				c[j][i][4][3]=0.0;
+				c[j][i][0][4]=-dt*tx2
+					*((C2*2.0*qs[k][j][i-1]-C1*u[k][j][i-1][4])
+							*u[k][j][i-1][1]*tmp2)
+					-dt*tx1
+					*(-(r43*c34-c1345)*tmp3*(u[k][j][i-1][1]*u[k][j][i-1][1])
+							-(c34-c1345)*tmp3*(u[k][j][i-1][2]*u[k][j][i-1][2])
+							-(c34-c1345)*tmp3*(u[k][j][i-1][3]*u[k][j][i-1][3])
+							-c1345*tmp2*u[k][j][i-1][4]);
+				c[j][i][1][4]=-dt*tx2
+					*(C1*(u[k][j][i-1][4]*tmp1)
+							-C2*(u[k][j][i-1][1]*u[k][j][i-1][1]*tmp2
+								+qs[k][j][i-1]*tmp1))
+					-dt*tx1*(r43*c34-c1345)*tmp2*u[k][j][i-1][1];
+				c[j][i][2][4]=-dt*tx2
+					*(-C2*(u[k][j][i-1][2]*u[k][j][i-1][1])*tmp2)
+					-dt*tx1*(c34-c1345)*tmp2*u[k][j][i-1][2];
+				c[j][i][3][4]=-dt*tx2
+					*(-C2*(u[k][j][i-1][3]*u[k][j][i-1][1])*tmp2)
+					-dt*tx1*(c34-c1345)*tmp2*u[k][j][i-1][3];
+				c[j][i][4][4]=-dt*tx2
+					*(C1*(u[k][j][i-1][1]*tmp1))
+					-dt*tx1*c1345*tmp1
+					-dt*tx1*dx5;
+			}
+		}
+	#endif
 }
 
 /*
@@ -2657,293 +2727,596 @@ void jacu(int k){
 	c1345=C1*C3*C4*C5;
 	c34=C3*C4;
 
-	#pragma omp for nowait schedule(static)
-	for (j=jend-1; j>=jst; j--) {
-		for (i=iend-1; i>=ist; i--) {
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the block daigonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k][j][i];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			d[j][i][0][0]=1.0+dt*2.0*(tx1*dx1+ty1*dy1+tz1*dz1);
-			d[j][i][1][0]=0.0;
-			d[j][i][2][0]=0.0;
-			d[j][i][3][0]=0.0;
-			d[j][i][4][0]=0.0;
-			d[j][i][0][1]=dt*2.0
-				*(-tx1*r43-ty1-tz1)
-				*(c34*tmp2*u[k][j][i][1]);
-			d[j][i][1][1]=1.0
-				+dt*2.0*c34*tmp1 
-				*(tx1*r43+ty1+tz1)
-				+dt*2.0*(tx1*dx2+ty1*dy2+tz1*dz2);
-			d[j][i][2][1]=0.0;
-			d[j][i][3][1]=0.0;
-			d[j][i][4][1]=0.0;
-			d[j][i][0][2]=dt*2.0
-				*(-tx1-ty1*r43-tz1)
-				*(c34*tmp2*u[k][j][i][2]);
-			d[j][i][1][2]=0.0;
-			d[j][i][2][2]=1.0
-				+dt*2.0*c34*tmp1
-				*(tx1+ty1*r43+tz1)
-				+dt*2.0*(tx1*dx3+ty1*dy3+tz1*dz3);
-			d[j][i][3][2]=0.0;
-			d[j][i][4][2]=0.0;
-			d[j][i][0][3]=dt*2.0
-				*(-tx1-ty1-tz1*r43)
-				*(c34*tmp2*u[k][j][i][3]);
-			d[j][i][1][3]=0.0;
-			d[j][i][2][3]=0.0;
-			d[j][i][3][3]=1.0
-				+dt*2.0*c34*tmp1
-				*(tx1+ty1+tz1*r43)
-				+dt*2.0*(tx1*dx4+ty1*dy4+tz1*dz4);
-			d[j][i][4][3]=0.0;
-			d[j][i][0][4]=-dt*2.0
-				*(((tx1*(r43*c34-c1345)
+	// SUCCESSFUL FOR 1 GPU
+	#if USE_GPU_JACU
+		#pragma omp master
+		{
+			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
+			update_gpus_rho_i(1, 1);
+			update_gpus_u(1, 1);
+			update_gpus_qs(1, 1);
+			#pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
+			for (j = next_index-1; j >= first_index; j--) {
+				for (i=iend-1; i>=ist; i--) {
+					/*
+					* ---------------------------------------------------------------------
+					* form the block daigonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k][j][i];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					d[j][i][0][0]=1.0+dt*2.0*(tx1*dx1+ty1*dy1+tz1*dz1);
+					d[j][i][1][0]=0.0;
+					d[j][i][2][0]=0.0;
+					d[j][i][3][0]=0.0;
+					d[j][i][4][0]=0.0;
+					d[j][i][0][1]=dt*2.0
+						*(-tx1*r43-ty1-tz1)
+						*(c34*tmp2*u[k][j][i][1]);
+					d[j][i][1][1]=1.0
+						+dt*2.0*c34*tmp1 
+						*(tx1*r43+ty1+tz1)
+						+dt*2.0*(tx1*dx2+ty1*dy2+tz1*dz2);
+					d[j][i][2][1]=0.0;
+					d[j][i][3][1]=0.0;
+					d[j][i][4][1]=0.0;
+					d[j][i][0][2]=dt*2.0
+						*(-tx1-ty1*r43-tz1)
+						*(c34*tmp2*u[k][j][i][2]);
+					d[j][i][1][2]=0.0;
+					d[j][i][2][2]=1.0
+						+dt*2.0*c34*tmp1
+						*(tx1+ty1*r43+tz1)
+						+dt*2.0*(tx1*dx3+ty1*dy3+tz1*dz3);
+					d[j][i][3][2]=0.0;
+					d[j][i][4][2]=0.0;
+					d[j][i][0][3]=dt*2.0
+						*(-tx1-ty1-tz1*r43)
+						*(c34*tmp2*u[k][j][i][3]);
+					d[j][i][1][3]=0.0;
+					d[j][i][2][3]=0.0;
+					d[j][i][3][3]=1.0
+						+dt*2.0*c34*tmp1
+						*(tx1+ty1+tz1*r43)
+						+dt*2.0*(tx1*dx4+ty1*dy4+tz1*dz4);
+					d[j][i][4][3]=0.0;
+					d[j][i][0][4]=-dt*2.0
+						*(((tx1*(r43*c34-c1345)
+										+ty1*(c34-c1345)
+										+tz1*(c34-c1345))*(u[k][j][i][1]*u[k][j][i][1])
+									+(tx1*(c34-c1345)
+										+ty1*(r43*c34-c1345)
+										+tz1*(c34-c1345))*(u[k][j][i][2]*u[k][j][i][2])
+									+(tx1*(c34-c1345)
+										+ty1*(c34-c1345)
+										+tz1*(r43*c34-c1345))*(u[k][j][i][3]*u[k][j][i][3])
+						)*tmp3
+								+(tx1+ty1+tz1)*c1345*tmp2*u[k][j][i][4]);
+					d[j][i][1][4]=dt*2.0
+						*(tx1*(r43*c34-c1345)
 								+ty1*(c34-c1345)
-								+tz1*(c34-c1345))*(u[k][j][i][1]*u[k][j][i][1])
-							+(tx1*(c34-c1345)
+								+tz1*(c34-c1345))*tmp2*u[k][j][i][1];
+					d[j][i][2][4]=dt*2.0
+						*(tx1*(c34-c1345)
 								+ty1*(r43*c34-c1345)
-								+tz1*(c34-c1345))*(u[k][j][i][2]*u[k][j][i][2])
-							+(tx1*(c34-c1345)
+								+tz1*(c34-c1345))*tmp2*u[k][j][i][2];
+					d[j][i][3][4]=dt*2.0
+						*(tx1*(c34-c1345)
 								+ty1*(c34-c1345)
-								+tz1*(r43*c34-c1345))*(u[k][j][i][3]*u[k][j][i][3])
-				  )*tmp3
-						+(tx1+ty1+tz1)*c1345*tmp2*u[k][j][i][4]);
-			d[j][i][1][4]=dt*2.0
-				*(tx1*(r43*c34-c1345)
-						+ty1*(c34-c1345)
-						+tz1*(c34-c1345))*tmp2*u[k][j][i][1];
-			d[j][i][2][4]=dt*2.0
-				*(tx1*(c34-c1345)
-						+ty1*(r43*c34-c1345)
-						+tz1*(c34-c1345))*tmp2*u[k][j][i][2];
-			d[j][i][3][4]=dt*2.0
-				*(tx1*(c34-c1345)
-						+ty1*(c34-c1345)
-						+tz1*(r43*c34-c1345))*tmp2*u[k][j][i][3];
-			d[j][i][4][4]=1.0
-				+dt*2.0*(tx1+ty1+tz1)*c1345*tmp1
-				+dt*2.0*(tx1*dx5+ty1*dy5+tz1*dz5);
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the first block sub-diagonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k][j][i+1];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			a[j][i][0][0]=-dt*tx1*dx1;
-			a[j][i][1][0]=dt*tx2;
-			a[j][i][2][0]=0.0;
-			a[j][i][3][0]=0.0;
-			a[j][i][4][0]=0.0;
-			a[j][i][0][1]=dt*tx2
-				*(-(u[k][j][i+1][1]*tmp1)*(u[k][j][i+1][1]*tmp1)
-						+C2*qs[k][j][i+1]*tmp1)
-				-dt*tx1*(-r43*c34*tmp2*u[k][j][i+1][1]);
-			a[j][i][1][1]=dt*tx2
-				*((2.0-C2)*(u[k][j][i+1][1]*tmp1))
-				-dt*tx1*(r43*c34*tmp1)
-				-dt*tx1*dx2;
-			a[j][i][2][1]=dt*tx2
-				*(-C2*(u[k][j][i+1][2]*tmp1));
-			a[j][i][3][1]=dt*tx2
-				*(-C2*(u[k][j][i+1][3]*tmp1));
-			a[j][i][4][1]=dt*tx2*C2;
-			a[j][i][0][2]=dt*tx2
-				*(-(u[k][j][i+1][1]*u[k][j][i+1][2])*tmp2)
-				-dt*tx1*(-c34*tmp2*u[k][j][i+1][2]);
-			a[j][i][1][2]=dt*tx2*(u[k][j][i+1][2]*tmp1);
-			a[j][i][2][2]=dt*tx2*(u[k][j][i+1][1]*tmp1)
-				-dt*tx1*(c34*tmp1)
-				-dt*tx1*dx3;
-			a[j][i][3][2]=0.0;
-			a[j][i][4][2]=0.0;
-			a[j][i][0][3]=dt*tx2
-				*(-(u[k][j][i+1][1]*u[k][j][i+1][3])*tmp2)
-				-dt*tx1*(-c34*tmp2*u[k][j][i+1][3]);
-			a[j][i][1][3]=dt*tx2*(u[k][j][i+1][3]*tmp1);
-			a[j][i][2][3]=0.0;
-			a[j][i][3][3]=dt*tx2*(u[k][j][i+1][1]*tmp1)
-				-dt*tx1*(c34*tmp1)
-				-dt*tx1*dx4;
-			a[j][i][4][3]=0.0;
-			a[j][i][0][4]=dt*tx2
-				*((C2*2.0*qs[k][j][i+1]
-							-C1*u[k][j][i+1][4])
-						*(u[k][j][i+1][1]*tmp2))
-				-dt*tx1
-				*(-(r43*c34-c1345)*tmp3*(u[k][j][i+1][1]*u[k][j][i+1][1])
-						-(c34-c1345)*tmp3*(u[k][j][i+1][2]*u[k][j][i+1][2])
-						-(c34-c1345)*tmp3*( u[k][j][i+1][3]*u[k][j][i+1][3])
-						-c1345*tmp2*u[k][j][i+1][4]);
-			a[j][i][1][4]=dt*tx2
-				*(C1*(u[k][j][i+1][4]*tmp1)
-						-C2
-						*(u[k][j][i+1][1]*u[k][j][i+1][1]*tmp2
-							+qs[k][j][i+1]*tmp1))
-				-dt*tx1
-				*(r43*c34-c1345)*tmp2*u[k][j][i+1][1];
-			a[j][i][2][4]=dt*tx2
-				*(-C2*(u[k][j][i+1][2]*u[k][j][i+1][1])*tmp2)
-				-dt*tx1
-				*(c34-c1345)*tmp2*u[k][j][i+1][2];
-			a[j][i][3][4]=dt*tx2
-				*(-C2*(u[k][j][i+1][3]*u[k][j][i+1][1])*tmp2)
-				-dt*tx1
-				*(c34-c1345)*tmp2*u[k][j][i+1][3];
-			a[j][i][4][4]=dt*tx2
-				*(C1*(u[k][j][i+1][1]*tmp1))
-				-dt*tx1*c1345*tmp1
-				-dt*tx1*dx5;
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the second block sub-diagonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k][j+1][i];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			b[j][i][0][0]=-dt*ty1*dy1;
-			b[j][i][1][0]=0.0;
-			b[j][i][2][0]=dt*ty2;
-			b[j][i][3][0]=0.0;
-			b[j][i][4][0]=0.0;
-			b[j][i][0][1]=dt*ty2
-				*(-(u[k][j+1][i][1]*u[k][j+1][i][2])*tmp2)
-				-dt*ty1*(-c34*tmp2*u[k][j+1][i][1]);
-			b[j][i][1][1]=dt*ty2*(u[k][j+1][i][2]*tmp1)
-				-dt*ty1*(c34*tmp1)
-				-dt*ty1*dy2;
-			b[j][i][2][1]=dt*ty2*(u[k][j+1][i][1]*tmp1);
-			b[j][i][3][1]=0.0;
-			b[j][i][4][1]=0.0;
-			b[j][i][0][2]=dt*ty2
-				*(-(u[k][j+1][i][2]*tmp1)*(u[k][j+1][i][2]*tmp1)
-						+C2*(qs[k][j+1][i]*tmp1))
-				-dt*ty1*(-r43*c34*tmp2*u[k][j+1][i][2]);
-			b[j][i][1][2]=dt*ty2
-				*(-C2*(u[k][j+1][i][1]*tmp1));
-			b[j][i][2][2]=dt*ty2*((2.0-C2)
-					*(u[k][j+1][i][2]*tmp1))
-				-dt*ty1*(r43*c34*tmp1)
-				-dt*ty1*dy3;
-			b[j][i][3][2]=dt*ty2
-				*(-C2*(u[k][j+1][i][3]*tmp1));
-			b[j][i][4][2]=dt*ty2*C2;
-			b[j][i][0][3]=dt*ty2
-				*(-(u[k][j+1][i][2]*u[k][j+1][i][3])*tmp2)
-				-dt*ty1*(-c34*tmp2*u[k][j+1][i][3]);
-			b[j][i][1][3]=0.0;
-			b[j][i][2][3]=dt*ty2*(u[k][j+1][i][3]*tmp1);
-			b[j][i][3][3]=dt*ty2*(u[k][j+1][i][2]*tmp1)
-				-dt*ty1*(c34*tmp1)
-				-dt*ty1*dy4;
-			b[j][i][4][3]=0.0;
-			b[j][i][0][4]=dt*ty2
-				*((C2*2.0*qs[k][j+1][i]
-							-C1*u[k][j+1][i][4])
-						*(u[k][j+1][i][2]*tmp2))
-				-dt*ty1
-				*(-(c34-c1345)*tmp3*(u[k][j+1][i][1]*u[k][j+1][i][1])
-						-(r43*c34-c1345)*tmp3*(u[k][j+1][i][2]*u[k][j+1][i][2])
-						-(c34-c1345)*tmp3*(u[k][j+1][i][3]*u[k][j+1][i][3])
-						-c1345*tmp2*u[k][j+1][i][4]);
-			b[j][i][1][4]=dt*ty2
-				*(-C2*(u[k][j+1][i][1]*u[k][j+1][i][2])*tmp2)
-				-dt*ty1
-				*(c34-c1345)*tmp2*u[k][j+1][i][1];
-			b[j][i][2][4]=dt*ty2
-				*(C1*(u[k][j+1][i][4]*tmp1)
-						-C2 
-						*(qs[k][j+1][i]*tmp1
-							+u[k][j+1][i][2]*u[k][j+1][i][2]*tmp2))
-				-dt*ty1
-				*(r43*c34-c1345)*tmp2*u[k][j+1][i][2];
-			b[j][i][3][4]=dt*ty2
-				*(-C2*(u[k][j+1][i][2]*u[k][j+1][i][3])*tmp2)
-				-dt*ty1*(c34-c1345)*tmp2*u[k][j+1][i][3];
-			b[j][i][4][4]=dt*ty2
-				*(C1*(u[k][j+1][i][2]*tmp1))
-				-dt*ty1*c1345*tmp1
-				-dt*ty1*dy5;
-			/*
-			 * ---------------------------------------------------------------------
-			 * form the third block sub-diagonal
-			 * ---------------------------------------------------------------------
-			 */
-			tmp1=rho_i[k+1][j][i];
-			tmp2=tmp1*tmp1;
-			tmp3=tmp1*tmp2;
-			c[j][i][0][0]=-dt*tz1*dz1;
-			c[j][i][1][0]=0.0;
-			c[j][i][2][0]=0.0;
-			c[j][i][3][0]=dt*tz2;
-			c[j][i][4][0]=0.0;
-			c[j][i][0][1]=dt*tz2
-				*(-(u[k+1][j][i][1]*u[k+1][j][i][3])*tmp2)
-				-dt*tz1*(-c34*tmp2*u[k+1][j][i][1]);
-			c[j][i][1][1]=dt*tz2*(u[k+1][j][i][3]*tmp1)
-				-dt*tz1*c34*tmp1
-				-dt*tz1*dz2;
-			c[j][i][2][1]=0.0;
-			c[j][i][3][1]=dt*tz2*(u[k+1][j][i][1]*tmp1);
-			c[j][i][4][1]=0.0;
-			c[j][i][0][2]=dt*tz2
-				*(-(u[k+1][j][i][2]*u[k+1][j][i][3])*tmp2)
-				-dt*tz1*(-c34*tmp2*u[k+1][j][i][2]);
-			c[j][i][1][2]=0.0;
-			c[j][i][2][2]=dt*tz2*(u[k+1][j][i][3]*tmp1)
-				-dt*tz1*(c34*tmp1)
-				-dt*tz1*dz3;
-			c[j][i][3][2]=dt*tz2*(u[k+1][j][i][2]*tmp1);
-			c[j][i][4][2]=0.0;
-			c[j][i][0][3]=dt*tz2
-				*(-(u[k+1][j][i][3]*tmp1)*(u[k+1][j][i][3]*tmp1)
-						+C2*(qs[k+1][j][i]*tmp1))
-				-dt*tz1*(-r43*c34*tmp2*u[k+1][j][i][3]);
-			c[j][i][1][3]=dt*tz2
-				*(-C2*(u[k+1][j][i][1]*tmp1));
-			c[j][i][2][3]=dt*tz2
-				*(-C2*(u[k+1][j][i][2]*tmp1));
-			c[j][i][3][3]=dt*tz2*(2.0-C2)
-				*(u[k+1][j][i][3]*tmp1)
-				-dt*tz1*(r43*c34*tmp1)
-				-dt*tz1*dz4;
-			c[j][i][4][3]=dt*tz2*C2;
-			c[j][i][0][4]=dt*tz2
-				*((C2*2.0*qs[k+1][j][i]
-							-C1*u[k+1][j][i][4])
-						*(u[k+1][j][i][3]*tmp2))
-				-dt*tz1
-				*(-(c34-c1345)*tmp3*(u[k+1][j][i][1]*u[k+1][j][i][1])
-						-(c34-c1345)*tmp3*(u[k+1][j][i][2]*u[k+1][j][i][2])
-						-(r43*c34-c1345)*tmp3*(u[k+1][j][i][3]*u[k+1][j][i][3])
-						-c1345*tmp2*u[k+1][j][i][4]);
-			c[j][i][1][4]=dt*tz2
-				*(-C2*(u[k+1][j][i][1]*u[k+1][j][i][3])*tmp2)
-				-dt*tz1*(c34-c1345)*tmp2*u[k+1][j][i][1];
-			c[j][i][2][4]=dt*tz2
-				*(-C2*(u[k+1][j][i][2]*u[k+1][j][i][3])*tmp2)
-				-dt*tz1*(c34-c1345)*tmp2*u[k+1][j][i][2];
-			c[j][i][3][4]=dt*tz2
-				*(C1*(u[k+1][j][i][4]*tmp1)
-						-C2
-						*(qs[k+1][j][i]*tmp1
-							+u[k+1][j][i][3]*u[k+1][j][i][3]*tmp2))
-				-dt*tz1*(r43*c34-c1345)*tmp2*u[k+1][j][i][3];
-			c[j][i][4][4]=dt*tz2
-				*(C1*(u[k+1][j][i][3]*tmp1))
-				-dt*tz1*c1345*tmp1
-				-dt*tz1*dz5;
+								+tz1*(r43*c34-c1345))*tmp2*u[k][j][i][3];
+					d[j][i][4][4]=1.0
+						+dt*2.0*(tx1+ty1+tz1)*c1345*tmp1
+						+dt*2.0*(tx1*dx5+ty1*dy5+tz1*dz5);
+					/*
+					* ---------------------------------------------------------------------
+					* form the first block sub-diagonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k][j][i+1];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					a[j][i][0][0]=-dt*tx1*dx1;
+					a[j][i][1][0]=dt*tx2;
+					a[j][i][2][0]=0.0;
+					a[j][i][3][0]=0.0;
+					a[j][i][4][0]=0.0;
+					a[j][i][0][1]=dt*tx2
+						*(-(u[k][j][i+1][1]*tmp1)*(u[k][j][i+1][1]*tmp1)
+								+C2*qs[k][j][i+1]*tmp1)
+						-dt*tx1*(-r43*c34*tmp2*u[k][j][i+1][1]);
+					a[j][i][1][1]=dt*tx2
+						*((2.0-C2)*(u[k][j][i+1][1]*tmp1))
+						-dt*tx1*(r43*c34*tmp1)
+						-dt*tx1*dx2;
+					a[j][i][2][1]=dt*tx2
+						*(-C2*(u[k][j][i+1][2]*tmp1));
+					a[j][i][3][1]=dt*tx2
+						*(-C2*(u[k][j][i+1][3]*tmp1));
+					a[j][i][4][1]=dt*tx2*C2;
+					a[j][i][0][2]=dt*tx2
+						*(-(u[k][j][i+1][1]*u[k][j][i+1][2])*tmp2)
+						-dt*tx1*(-c34*tmp2*u[k][j][i+1][2]);
+					a[j][i][1][2]=dt*tx2*(u[k][j][i+1][2]*tmp1);
+					a[j][i][2][2]=dt*tx2*(u[k][j][i+1][1]*tmp1)
+						-dt*tx1*(c34*tmp1)
+						-dt*tx1*dx3;
+					a[j][i][3][2]=0.0;
+					a[j][i][4][2]=0.0;
+					a[j][i][0][3]=dt*tx2
+						*(-(u[k][j][i+1][1]*u[k][j][i+1][3])*tmp2)
+						-dt*tx1*(-c34*tmp2*u[k][j][i+1][3]);
+					a[j][i][1][3]=dt*tx2*(u[k][j][i+1][3]*tmp1);
+					a[j][i][2][3]=0.0;
+					a[j][i][3][3]=dt*tx2*(u[k][j][i+1][1]*tmp1)
+						-dt*tx1*(c34*tmp1)
+						-dt*tx1*dx4;
+					a[j][i][4][3]=0.0;
+					a[j][i][0][4]=dt*tx2
+						*((C2*2.0*qs[k][j][i+1]
+									-C1*u[k][j][i+1][4])
+								*(u[k][j][i+1][1]*tmp2))
+						-dt*tx1
+						*(-(r43*c34-c1345)*tmp3*(u[k][j][i+1][1]*u[k][j][i+1][1])
+								-(c34-c1345)*tmp3*(u[k][j][i+1][2]*u[k][j][i+1][2])
+								-(c34-c1345)*tmp3*( u[k][j][i+1][3]*u[k][j][i+1][3])
+								-c1345*tmp2*u[k][j][i+1][4]);
+					a[j][i][1][4]=dt*tx2
+						*(C1*(u[k][j][i+1][4]*tmp1)
+								-C2
+								*(u[k][j][i+1][1]*u[k][j][i+1][1]*tmp2
+									+qs[k][j][i+1]*tmp1))
+						-dt*tx1
+						*(r43*c34-c1345)*tmp2*u[k][j][i+1][1];
+					a[j][i][2][4]=dt*tx2
+						*(-C2*(u[k][j][i+1][2]*u[k][j][i+1][1])*tmp2)
+						-dt*tx1
+						*(c34-c1345)*tmp2*u[k][j][i+1][2];
+					a[j][i][3][4]=dt*tx2
+						*(-C2*(u[k][j][i+1][3]*u[k][j][i+1][1])*tmp2)
+						-dt*tx1
+						*(c34-c1345)*tmp2*u[k][j][i+1][3];
+					a[j][i][4][4]=dt*tx2
+						*(C1*(u[k][j][i+1][1]*tmp1))
+						-dt*tx1*c1345*tmp1
+						-dt*tx1*dx5;
+					/*
+					* ---------------------------------------------------------------------
+					* form the second block sub-diagonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k][j+1][i];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					b[j][i][0][0]=-dt*ty1*dy1;
+					b[j][i][1][0]=0.0;
+					b[j][i][2][0]=dt*ty2;
+					b[j][i][3][0]=0.0;
+					b[j][i][4][0]=0.0;
+					b[j][i][0][1]=dt*ty2
+						*(-(u[k][j+1][i][1]*u[k][j+1][i][2])*tmp2)
+						-dt*ty1*(-c34*tmp2*u[k][j+1][i][1]);
+					b[j][i][1][1]=dt*ty2*(u[k][j+1][i][2]*tmp1)
+						-dt*ty1*(c34*tmp1)
+						-dt*ty1*dy2;
+					b[j][i][2][1]=dt*ty2*(u[k][j+1][i][1]*tmp1);
+					b[j][i][3][1]=0.0;
+					b[j][i][4][1]=0.0;
+					b[j][i][0][2]=dt*ty2
+						*(-(u[k][j+1][i][2]*tmp1)*(u[k][j+1][i][2]*tmp1)
+								+C2*(qs[k][j+1][i]*tmp1))
+						-dt*ty1*(-r43*c34*tmp2*u[k][j+1][i][2]);
+					b[j][i][1][2]=dt*ty2
+						*(-C2*(u[k][j+1][i][1]*tmp1));
+					b[j][i][2][2]=dt*ty2*((2.0-C2)
+							*(u[k][j+1][i][2]*tmp1))
+						-dt*ty1*(r43*c34*tmp1)
+						-dt*ty1*dy3;
+					b[j][i][3][2]=dt*ty2
+						*(-C2*(u[k][j+1][i][3]*tmp1));
+					b[j][i][4][2]=dt*ty2*C2;
+					b[j][i][0][3]=dt*ty2
+						*(-(u[k][j+1][i][2]*u[k][j+1][i][3])*tmp2)
+						-dt*ty1*(-c34*tmp2*u[k][j+1][i][3]);
+					b[j][i][1][3]=0.0;
+					b[j][i][2][3]=dt*ty2*(u[k][j+1][i][3]*tmp1);
+					b[j][i][3][3]=dt*ty2*(u[k][j+1][i][2]*tmp1)
+						-dt*ty1*(c34*tmp1)
+						-dt*ty1*dy4;
+					b[j][i][4][3]=0.0;
+					b[j][i][0][4]=dt*ty2
+						*((C2*2.0*qs[k][j+1][i]
+									-C1*u[k][j+1][i][4])
+								*(u[k][j+1][i][2]*tmp2))
+						-dt*ty1
+						*(-(c34-c1345)*tmp3*(u[k][j+1][i][1]*u[k][j+1][i][1])
+								-(r43*c34-c1345)*tmp3*(u[k][j+1][i][2]*u[k][j+1][i][2])
+								-(c34-c1345)*tmp3*(u[k][j+1][i][3]*u[k][j+1][i][3])
+								-c1345*tmp2*u[k][j+1][i][4]);
+					b[j][i][1][4]=dt*ty2
+						*(-C2*(u[k][j+1][i][1]*u[k][j+1][i][2])*tmp2)
+						-dt*ty1
+						*(c34-c1345)*tmp2*u[k][j+1][i][1];
+					b[j][i][2][4]=dt*ty2
+						*(C1*(u[k][j+1][i][4]*tmp1)
+								-C2 
+								*(qs[k][j+1][i]*tmp1
+									+u[k][j+1][i][2]*u[k][j+1][i][2]*tmp2))
+						-dt*ty1
+						*(r43*c34-c1345)*tmp2*u[k][j+1][i][2];
+					b[j][i][3][4]=dt*ty2
+						*(-C2*(u[k][j+1][i][2]*u[k][j+1][i][3])*tmp2)
+						-dt*ty1*(c34-c1345)*tmp2*u[k][j+1][i][3];
+					b[j][i][4][4]=dt*ty2
+						*(C1*(u[k][j+1][i][2]*tmp1))
+						-dt*ty1*c1345*tmp1
+						-dt*ty1*dy5;
+					/*
+					* ---------------------------------------------------------------------
+					* form the third block sub-diagonal
+					* ---------------------------------------------------------------------
+					*/
+					tmp1=rho_i[k+1][j][i];
+					tmp2=tmp1*tmp1;
+					tmp3=tmp1*tmp2;
+					c[j][i][0][0]=-dt*tz1*dz1;
+					c[j][i][1][0]=0.0;
+					c[j][i][2][0]=0.0;
+					c[j][i][3][0]=dt*tz2;
+					c[j][i][4][0]=0.0;
+					c[j][i][0][1]=dt*tz2
+						*(-(u[k+1][j][i][1]*u[k+1][j][i][3])*tmp2)
+						-dt*tz1*(-c34*tmp2*u[k+1][j][i][1]);
+					c[j][i][1][1]=dt*tz2*(u[k+1][j][i][3]*tmp1)
+						-dt*tz1*c34*tmp1
+						-dt*tz1*dz2;
+					c[j][i][2][1]=0.0;
+					c[j][i][3][1]=dt*tz2*(u[k+1][j][i][1]*tmp1);
+					c[j][i][4][1]=0.0;
+					c[j][i][0][2]=dt*tz2
+						*(-(u[k+1][j][i][2]*u[k+1][j][i][3])*tmp2)
+						-dt*tz1*(-c34*tmp2*u[k+1][j][i][2]);
+					c[j][i][1][2]=0.0;
+					c[j][i][2][2]=dt*tz2*(u[k+1][j][i][3]*tmp1)
+						-dt*tz1*(c34*tmp1)
+						-dt*tz1*dz3;
+					c[j][i][3][2]=dt*tz2*(u[k+1][j][i][2]*tmp1);
+					c[j][i][4][2]=0.0;
+					c[j][i][0][3]=dt*tz2
+						*(-(u[k+1][j][i][3]*tmp1)*(u[k+1][j][i][3]*tmp1)
+								+C2*(qs[k+1][j][i]*tmp1))
+						-dt*tz1*(-r43*c34*tmp2*u[k+1][j][i][3]);
+					c[j][i][1][3]=dt*tz2
+						*(-C2*(u[k+1][j][i][1]*tmp1));
+					c[j][i][2][3]=dt*tz2
+						*(-C2*(u[k+1][j][i][2]*tmp1));
+					c[j][i][3][3]=dt*tz2*(2.0-C2)
+						*(u[k+1][j][i][3]*tmp1)
+						-dt*tz1*(r43*c34*tmp1)
+						-dt*tz1*dz4;
+					c[j][i][4][3]=dt*tz2*C2;
+					c[j][i][0][4]=dt*tz2
+						*((C2*2.0*qs[k+1][j][i]
+									-C1*u[k+1][j][i][4])
+								*(u[k+1][j][i][3]*tmp2))
+						-dt*tz1
+						*(-(c34-c1345)*tmp3*(u[k+1][j][i][1]*u[k+1][j][i][1])
+								-(c34-c1345)*tmp3*(u[k+1][j][i][2]*u[k+1][j][i][2])
+								-(r43*c34-c1345)*tmp3*(u[k+1][j][i][3]*u[k+1][j][i][3])
+								-c1345*tmp2*u[k+1][j][i][4]);
+					c[j][i][1][4]=dt*tz2
+						*(-C2*(u[k+1][j][i][1]*u[k+1][j][i][3])*tmp2)
+						-dt*tz1*(c34-c1345)*tmp2*u[k+1][j][i][1];
+					c[j][i][2][4]=dt*tz2
+						*(-C2*(u[k+1][j][i][2]*u[k+1][j][i][3])*tmp2)
+						-dt*tz1*(c34-c1345)*tmp2*u[k+1][j][i][2];
+					c[j][i][3][4]=dt*tz2
+						*(C1*(u[k+1][j][i][4]*tmp1)
+								-C2
+								*(qs[k+1][j][i]*tmp1
+									+u[k+1][j][i][3]*u[k+1][j][i][3]*tmp2))
+						-dt*tz1*(r43*c34-c1345)*tmp2*u[k+1][j][i][3];
+					c[j][i][4][4]=dt*tz2
+						*(C1*(u[k+1][j][i][3]*tmp1))
+						-dt*tz1*c1345*tmp1
+						-dt*tz1*dz5;
+				}
+			}
+			update_gpus_d(0, 0);
+			update_gpus_a(0, 0);
+			update_gpus_b(0, 0);
+			update_gpus_c(0, 0);
 		}
-	}
+		#pragma omp barrier
+	#else
+		#pragma omp for nowait schedule(static)
+		for (j=jend-1; j>=jst; j--) {
+			for (i=iend-1; i>=ist; i--) {
+				/*
+				* ---------------------------------------------------------------------
+				* form the block daigonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k][j][i];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				d[j][i][0][0]=1.0+dt*2.0*(tx1*dx1+ty1*dy1+tz1*dz1);
+				d[j][i][1][0]=0.0;
+				d[j][i][2][0]=0.0;
+				d[j][i][3][0]=0.0;
+				d[j][i][4][0]=0.0;
+				d[j][i][0][1]=dt*2.0
+					*(-tx1*r43-ty1-tz1)
+					*(c34*tmp2*u[k][j][i][1]);
+				d[j][i][1][1]=1.0
+					+dt*2.0*c34*tmp1 
+					*(tx1*r43+ty1+tz1)
+					+dt*2.0*(tx1*dx2+ty1*dy2+tz1*dz2);
+				d[j][i][2][1]=0.0;
+				d[j][i][3][1]=0.0;
+				d[j][i][4][1]=0.0;
+				d[j][i][0][2]=dt*2.0
+					*(-tx1-ty1*r43-tz1)
+					*(c34*tmp2*u[k][j][i][2]);
+				d[j][i][1][2]=0.0;
+				d[j][i][2][2]=1.0
+					+dt*2.0*c34*tmp1
+					*(tx1+ty1*r43+tz1)
+					+dt*2.0*(tx1*dx3+ty1*dy3+tz1*dz3);
+				d[j][i][3][2]=0.0;
+				d[j][i][4][2]=0.0;
+				d[j][i][0][3]=dt*2.0
+					*(-tx1-ty1-tz1*r43)
+					*(c34*tmp2*u[k][j][i][3]);
+				d[j][i][1][3]=0.0;
+				d[j][i][2][3]=0.0;
+				d[j][i][3][3]=1.0
+					+dt*2.0*c34*tmp1
+					*(tx1+ty1+tz1*r43)
+					+dt*2.0*(tx1*dx4+ty1*dy4+tz1*dz4);
+				d[j][i][4][3]=0.0;
+				d[j][i][0][4]=-dt*2.0
+					*(((tx1*(r43*c34-c1345)
+									+ty1*(c34-c1345)
+									+tz1*(c34-c1345))*(u[k][j][i][1]*u[k][j][i][1])
+								+(tx1*(c34-c1345)
+									+ty1*(r43*c34-c1345)
+									+tz1*(c34-c1345))*(u[k][j][i][2]*u[k][j][i][2])
+								+(tx1*(c34-c1345)
+									+ty1*(c34-c1345)
+									+tz1*(r43*c34-c1345))*(u[k][j][i][3]*u[k][j][i][3])
+					)*tmp3
+							+(tx1+ty1+tz1)*c1345*tmp2*u[k][j][i][4]);
+				d[j][i][1][4]=dt*2.0
+					*(tx1*(r43*c34-c1345)
+							+ty1*(c34-c1345)
+							+tz1*(c34-c1345))*tmp2*u[k][j][i][1];
+				d[j][i][2][4]=dt*2.0
+					*(tx1*(c34-c1345)
+							+ty1*(r43*c34-c1345)
+							+tz1*(c34-c1345))*tmp2*u[k][j][i][2];
+				d[j][i][3][4]=dt*2.0
+					*(tx1*(c34-c1345)
+							+ty1*(c34-c1345)
+							+tz1*(r43*c34-c1345))*tmp2*u[k][j][i][3];
+				d[j][i][4][4]=1.0
+					+dt*2.0*(tx1+ty1+tz1)*c1345*tmp1
+					+dt*2.0*(tx1*dx5+ty1*dy5+tz1*dz5);
+				/*
+				* ---------------------------------------------------------------------
+				* form the first block sub-diagonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k][j][i+1];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				a[j][i][0][0]=-dt*tx1*dx1;
+				a[j][i][1][0]=dt*tx2;
+				a[j][i][2][0]=0.0;
+				a[j][i][3][0]=0.0;
+				a[j][i][4][0]=0.0;
+				a[j][i][0][1]=dt*tx2
+					*(-(u[k][j][i+1][1]*tmp1)*(u[k][j][i+1][1]*tmp1)
+							+C2*qs[k][j][i+1]*tmp1)
+					-dt*tx1*(-r43*c34*tmp2*u[k][j][i+1][1]);
+				a[j][i][1][1]=dt*tx2
+					*((2.0-C2)*(u[k][j][i+1][1]*tmp1))
+					-dt*tx1*(r43*c34*tmp1)
+					-dt*tx1*dx2;
+				a[j][i][2][1]=dt*tx2
+					*(-C2*(u[k][j][i+1][2]*tmp1));
+				a[j][i][3][1]=dt*tx2
+					*(-C2*(u[k][j][i+1][3]*tmp1));
+				a[j][i][4][1]=dt*tx2*C2;
+				a[j][i][0][2]=dt*tx2
+					*(-(u[k][j][i+1][1]*u[k][j][i+1][2])*tmp2)
+					-dt*tx1*(-c34*tmp2*u[k][j][i+1][2]);
+				a[j][i][1][2]=dt*tx2*(u[k][j][i+1][2]*tmp1);
+				a[j][i][2][2]=dt*tx2*(u[k][j][i+1][1]*tmp1)
+					-dt*tx1*(c34*tmp1)
+					-dt*tx1*dx3;
+				a[j][i][3][2]=0.0;
+				a[j][i][4][2]=0.0;
+				a[j][i][0][3]=dt*tx2
+					*(-(u[k][j][i+1][1]*u[k][j][i+1][3])*tmp2)
+					-dt*tx1*(-c34*tmp2*u[k][j][i+1][3]);
+				a[j][i][1][3]=dt*tx2*(u[k][j][i+1][3]*tmp1);
+				a[j][i][2][3]=0.0;
+				a[j][i][3][3]=dt*tx2*(u[k][j][i+1][1]*tmp1)
+					-dt*tx1*(c34*tmp1)
+					-dt*tx1*dx4;
+				a[j][i][4][3]=0.0;
+				a[j][i][0][4]=dt*tx2
+					*((C2*2.0*qs[k][j][i+1]
+								-C1*u[k][j][i+1][4])
+							*(u[k][j][i+1][1]*tmp2))
+					-dt*tx1
+					*(-(r43*c34-c1345)*tmp3*(u[k][j][i+1][1]*u[k][j][i+1][1])
+							-(c34-c1345)*tmp3*(u[k][j][i+1][2]*u[k][j][i+1][2])
+							-(c34-c1345)*tmp3*( u[k][j][i+1][3]*u[k][j][i+1][3])
+							-c1345*tmp2*u[k][j][i+1][4]);
+				a[j][i][1][4]=dt*tx2
+					*(C1*(u[k][j][i+1][4]*tmp1)
+							-C2
+							*(u[k][j][i+1][1]*u[k][j][i+1][1]*tmp2
+								+qs[k][j][i+1]*tmp1))
+					-dt*tx1
+					*(r43*c34-c1345)*tmp2*u[k][j][i+1][1];
+				a[j][i][2][4]=dt*tx2
+					*(-C2*(u[k][j][i+1][2]*u[k][j][i+1][1])*tmp2)
+					-dt*tx1
+					*(c34-c1345)*tmp2*u[k][j][i+1][2];
+				a[j][i][3][4]=dt*tx2
+					*(-C2*(u[k][j][i+1][3]*u[k][j][i+1][1])*tmp2)
+					-dt*tx1
+					*(c34-c1345)*tmp2*u[k][j][i+1][3];
+				a[j][i][4][4]=dt*tx2
+					*(C1*(u[k][j][i+1][1]*tmp1))
+					-dt*tx1*c1345*tmp1
+					-dt*tx1*dx5;
+				/*
+				* ---------------------------------------------------------------------
+				* form the second block sub-diagonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k][j+1][i];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				b[j][i][0][0]=-dt*ty1*dy1;
+				b[j][i][1][0]=0.0;
+				b[j][i][2][0]=dt*ty2;
+				b[j][i][3][0]=0.0;
+				b[j][i][4][0]=0.0;
+				b[j][i][0][1]=dt*ty2
+					*(-(u[k][j+1][i][1]*u[k][j+1][i][2])*tmp2)
+					-dt*ty1*(-c34*tmp2*u[k][j+1][i][1]);
+				b[j][i][1][1]=dt*ty2*(u[k][j+1][i][2]*tmp1)
+					-dt*ty1*(c34*tmp1)
+					-dt*ty1*dy2;
+				b[j][i][2][1]=dt*ty2*(u[k][j+1][i][1]*tmp1);
+				b[j][i][3][1]=0.0;
+				b[j][i][4][1]=0.0;
+				b[j][i][0][2]=dt*ty2
+					*(-(u[k][j+1][i][2]*tmp1)*(u[k][j+1][i][2]*tmp1)
+							+C2*(qs[k][j+1][i]*tmp1))
+					-dt*ty1*(-r43*c34*tmp2*u[k][j+1][i][2]);
+				b[j][i][1][2]=dt*ty2
+					*(-C2*(u[k][j+1][i][1]*tmp1));
+				b[j][i][2][2]=dt*ty2*((2.0-C2)
+						*(u[k][j+1][i][2]*tmp1))
+					-dt*ty1*(r43*c34*tmp1)
+					-dt*ty1*dy3;
+				b[j][i][3][2]=dt*ty2
+					*(-C2*(u[k][j+1][i][3]*tmp1));
+				b[j][i][4][2]=dt*ty2*C2;
+				b[j][i][0][3]=dt*ty2
+					*(-(u[k][j+1][i][2]*u[k][j+1][i][3])*tmp2)
+					-dt*ty1*(-c34*tmp2*u[k][j+1][i][3]);
+				b[j][i][1][3]=0.0;
+				b[j][i][2][3]=dt*ty2*(u[k][j+1][i][3]*tmp1);
+				b[j][i][3][3]=dt*ty2*(u[k][j+1][i][2]*tmp1)
+					-dt*ty1*(c34*tmp1)
+					-dt*ty1*dy4;
+				b[j][i][4][3]=0.0;
+				b[j][i][0][4]=dt*ty2
+					*((C2*2.0*qs[k][j+1][i]
+								-C1*u[k][j+1][i][4])
+							*(u[k][j+1][i][2]*tmp2))
+					-dt*ty1
+					*(-(c34-c1345)*tmp3*(u[k][j+1][i][1]*u[k][j+1][i][1])
+							-(r43*c34-c1345)*tmp3*(u[k][j+1][i][2]*u[k][j+1][i][2])
+							-(c34-c1345)*tmp3*(u[k][j+1][i][3]*u[k][j+1][i][3])
+							-c1345*tmp2*u[k][j+1][i][4]);
+				b[j][i][1][4]=dt*ty2
+					*(-C2*(u[k][j+1][i][1]*u[k][j+1][i][2])*tmp2)
+					-dt*ty1
+					*(c34-c1345)*tmp2*u[k][j+1][i][1];
+				b[j][i][2][4]=dt*ty2
+					*(C1*(u[k][j+1][i][4]*tmp1)
+							-C2 
+							*(qs[k][j+1][i]*tmp1
+								+u[k][j+1][i][2]*u[k][j+1][i][2]*tmp2))
+					-dt*ty1
+					*(r43*c34-c1345)*tmp2*u[k][j+1][i][2];
+				b[j][i][3][4]=dt*ty2
+					*(-C2*(u[k][j+1][i][2]*u[k][j+1][i][3])*tmp2)
+					-dt*ty1*(c34-c1345)*tmp2*u[k][j+1][i][3];
+				b[j][i][4][4]=dt*ty2
+					*(C1*(u[k][j+1][i][2]*tmp1))
+					-dt*ty1*c1345*tmp1
+					-dt*ty1*dy5;
+				/*
+				* ---------------------------------------------------------------------
+				* form the third block sub-diagonal
+				* ---------------------------------------------------------------------
+				*/
+				tmp1=rho_i[k+1][j][i];
+				tmp2=tmp1*tmp1;
+				tmp3=tmp1*tmp2;
+				c[j][i][0][0]=-dt*tz1*dz1;
+				c[j][i][1][0]=0.0;
+				c[j][i][2][0]=0.0;
+				c[j][i][3][0]=dt*tz2;
+				c[j][i][4][0]=0.0;
+				c[j][i][0][1]=dt*tz2
+					*(-(u[k+1][j][i][1]*u[k+1][j][i][3])*tmp2)
+					-dt*tz1*(-c34*tmp2*u[k+1][j][i][1]);
+				c[j][i][1][1]=dt*tz2*(u[k+1][j][i][3]*tmp1)
+					-dt*tz1*c34*tmp1
+					-dt*tz1*dz2;
+				c[j][i][2][1]=0.0;
+				c[j][i][3][1]=dt*tz2*(u[k+1][j][i][1]*tmp1);
+				c[j][i][4][1]=0.0;
+				c[j][i][0][2]=dt*tz2
+					*(-(u[k+1][j][i][2]*u[k+1][j][i][3])*tmp2)
+					-dt*tz1*(-c34*tmp2*u[k+1][j][i][2]);
+				c[j][i][1][2]=0.0;
+				c[j][i][2][2]=dt*tz2*(u[k+1][j][i][3]*tmp1)
+					-dt*tz1*(c34*tmp1)
+					-dt*tz1*dz3;
+				c[j][i][3][2]=dt*tz2*(u[k+1][j][i][2]*tmp1);
+				c[j][i][4][2]=0.0;
+				c[j][i][0][3]=dt*tz2
+					*(-(u[k+1][j][i][3]*tmp1)*(u[k+1][j][i][3]*tmp1)
+							+C2*(qs[k+1][j][i]*tmp1))
+					-dt*tz1*(-r43*c34*tmp2*u[k+1][j][i][3]);
+				c[j][i][1][3]=dt*tz2
+					*(-C2*(u[k+1][j][i][1]*tmp1));
+				c[j][i][2][3]=dt*tz2
+					*(-C2*(u[k+1][j][i][2]*tmp1));
+				c[j][i][3][3]=dt*tz2*(2.0-C2)
+					*(u[k+1][j][i][3]*tmp1)
+					-dt*tz1*(r43*c34*tmp1)
+					-dt*tz1*dz4;
+				c[j][i][4][3]=dt*tz2*C2;
+				c[j][i][0][4]=dt*tz2
+					*((C2*2.0*qs[k+1][j][i]
+								-C1*u[k+1][j][i][4])
+							*(u[k+1][j][i][3]*tmp2))
+					-dt*tz1
+					*(-(c34-c1345)*tmp3*(u[k+1][j][i][1]*u[k+1][j][i][1])
+							-(c34-c1345)*tmp3*(u[k+1][j][i][2]*u[k+1][j][i][2])
+							-(r43*c34-c1345)*tmp3*(u[k+1][j][i][3]*u[k+1][j][i][3])
+							-c1345*tmp2*u[k+1][j][i][4]);
+				c[j][i][1][4]=dt*tz2
+					*(-C2*(u[k+1][j][i][1]*u[k+1][j][i][3])*tmp2)
+					-dt*tz1*(c34-c1345)*tmp2*u[k+1][j][i][1];
+				c[j][i][2][4]=dt*tz2
+					*(-C2*(u[k+1][j][i][2]*u[k+1][j][i][3])*tmp2)
+					-dt*tz1*(c34-c1345)*tmp2*u[k+1][j][i][2];
+				c[j][i][3][4]=dt*tz2
+					*(C1*(u[k+1][j][i][4]*tmp1)
+							-C2
+							*(qs[k+1][j][i]*tmp1
+								+u[k+1][j][i][3]*u[k+1][j][i][3]*tmp2))
+					-dt*tz1*(r43*c34-c1345)*tmp2*u[k+1][j][i][3];
+				c[j][i][4][4]=dt*tz2
+					*(C1*(u[k+1][j][i][3]*tmp1))
+					-dt*tz1*c1345*tmp1
+					-dt*tz1*dz5;
+			}
+		}
+	#endif
 }
 
 /*
@@ -4547,10 +4920,11 @@ void ssor(int niter){
 			 * ---------------------------------------------------------------------
 			 */
 			#if USE_GPU_RHS
-				#pragma omp single 
+				#pragma omp master
 				{
 					rhs();
 				}
+				#pragma omp barrier
 			#else
 				rhs();
 			#endif
