@@ -108,7 +108,7 @@ Authors of the OpenMP code:
 #define USE_GPU_RHS 0
 #define USE_GPU_BLTS 0
 #define USE_GPU_BUTS 1
-#define USE_GPU_JACLD 0
+#define USE_GPU_JACLD 1
 #define USE_GPU_JACU 1
 #define USE_GPU ((USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) || (USE_GPU_BUTS) || (USE_GPU_JACLD) || (USE_GPU_JACU))
 
@@ -2157,6 +2157,7 @@ void jacld(int k){
 
 	// SUCCESSFUL FOR 1 GPU
 	#if USE_GPU_JACLD
+		#pragma omp barrier // TODO: possibly remove this
 		#pragma omp master
 		{			
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
@@ -2729,6 +2730,7 @@ void jacu(int k){
 
 	// SUCCESSFUL FOR 1 GPU
 	#if USE_GPU_JACU
+		#pragma omp barrier // TODO: possibly remove this
 		#pragma omp master
 		{
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
