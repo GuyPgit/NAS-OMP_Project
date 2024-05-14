@@ -104,12 +104,12 @@ Authors of the OpenMP code:
 #define T_L2NORM 11
 #define T_LAST 11
 
-#define USE_GPU_ERHS 0
+#define USE_GPU_ERHS 1
 #define USE_GPU_RHS 0
 #define USE_GPU_BLTS 0
-#define USE_GPU_BUTS 1
-#define USE_GPU_JACLD 1
-#define USE_GPU_JACU 1
+#define USE_GPU_BUTS 0
+#define USE_GPU_JACLD 0
+#define USE_GPU_JACU 0
 #define USE_GPU ((USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) || (USE_GPU_BUTS) || (USE_GPU_JACLD) || (USE_GPU_JACU))
 
 /* global variables */
@@ -2739,7 +2739,7 @@ void jacu(int k){
 			update_gpus_qs(1, 1);
 			#pragma omp target teams distribute parallel for device(device_id) num_teams(chunk_size_final)
 			for (j = next_index-1; j >= first_index; j--) {
-				for (i=iend-1; i>=ist; i--) {
+				for(i=iend-1; i>=ist; i--){
 					/*
 					* ---------------------------------------------------------------------
 					* form the block daigonal
