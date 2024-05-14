@@ -105,9 +105,9 @@ Authors of the OpenMP code:
 #define T_LAST 11
 
 #define USE_GPU_ERHS 1
-#define USE_GPU_RHS 0
-#define USE_GPU_BLTS 0
-#define USE_GPU_BUTS 0
+#define USE_GPU_RHS 1
+#define USE_GPU_BLTS 1
+#define USE_GPU_BUTS 1
 #define USE_GPU_JACLD 0
 #define USE_GPU_JACU 0
 #define USE_GPU ((USE_GPU_ERHS) || (USE_GPU_RHS) || (USE_GPU_BLTS) || (USE_GPU_BUTS) || (USE_GPU_JACLD) || (USE_GPU_JACU))
