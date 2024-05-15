@@ -319,7 +319,7 @@ static boolean flag2[ISIZ1/2*2+1];
 			#pragma omp target exit data map(delete: d[0:ISIZ2][0:ISIZ1/2*2+1][0:5][0:5]) device(device_id)
 			#pragma omp target exit data map(delete: ce[0:13][0:5]) device(device_id)
 		}
-		printf("map_gpus_all_delete_full - FINISHED\n");
+		// printf("map_gpus_all_delete_full - FINISHED\n");
 	}
 
 	/* functions updating the global arrays to/from the gpus */
@@ -2157,7 +2157,6 @@ void jacld(int k){
 
 	// SUCCESSFUL FOR 1 GPU
 	#if USE_GPU_JACLD
-		#pragma omp barrier // TODO: possibly remove this
 		#pragma omp master
 		{			
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);
@@ -2730,7 +2729,6 @@ void jacu(int k){
 
 	// SUCCESSFUL FOR 1 GPU
 	#if USE_GPU_JACU
-		#pragma omp barrier // TODO: possibly remove this
 		#pragma omp master
 		{
 			eval_gpu_split_by_thread(jend-jst, jst, 1, 1);

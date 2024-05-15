@@ -39,3 +39,5 @@ NPB-OMP-GPU/config/context_values.cfg
 NPB-OMP-GPU/config/state.cfg
 
 OMP-GPU_parallelism_draft.cpp
+
+NPB-OMP-GPU/saved_tars
